@@ -1,6 +1,7 @@
 // src/components/ReleasesPage.jsx
 import React, { useEffect, useState } from "react";
 import { releasesStyles } from "../../assets/dummyStyles";
+import { BeamsBackground } from "../ui/beams-background";
 
 const API_BASE = "http://localhost:5000";
 const PLACEHOLDER_IMG = "https://placehold.co/400x600?text=No+Image";
@@ -104,6 +105,7 @@ const ReleasesPage = () => {
   }, []);
 
   return (
+    <BeamsBackground intensity="subtle" className="min-h-screen">
     <div className={releasesStyles.pageContainer}>
       <div className={releasesStyles.headerContainer}>
         <h1 className={releasesStyles.headerTitle}>RELEASES SOON</h1>
@@ -146,6 +148,7 @@ const ReleasesPage = () => {
         </div>
       )}
     </div>
+    </BeamsBackground>
   );
 };
 

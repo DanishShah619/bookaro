@@ -182,7 +182,7 @@ export const navbarCSS = `
 
 export const bookingsPageStyles = {
   // Layout and container styles
-  pageContainer: "min-h-screen bg-black p-6 sm:p-8 text-gray-100",
+  pageContainer: "min-h-screen p-6 sm:p-8 text-gray-100",
   mainContainer: "max-w-7xl pt-30 mx-auto",
   
   // Header
@@ -725,7 +725,7 @@ export const newsCSS = `
 // Add to src/assets/dummyStyles.js
 export const releasesStyles = {
   // Page container
-  pageContainer: "min-h-screen pt-25 bg-gradient-to-br from-gray-900 to-black text-white p-6",
+  pageContainer: "min-h-screen pt-25 text-white p-6",
   
   // Header section
   headerContainer: "text-center mb-12 mt-6",
