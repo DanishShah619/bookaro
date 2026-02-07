@@ -113,7 +113,8 @@ export async function login(req, res) {
         name: user.fullName,
         fullName: user.fullName,
         username: user.username,
-        email: user.email
+        email: user.email,
+        isAdmin: user.isAdmin || false
       }
     });
   } catch (err) {

@@ -8,6 +8,7 @@ import {
   deleteMovie,
 } from "../controllers/moviesController.js";
 import authMiddleware from "../middlewares/auth.js";
+import requireAdmin from "../middlewares/requireAdmin.js";
 
 const movieRouter = express.Router();
 
@@ -36,9 +37,9 @@ const upload = multer({ storage }).fields([
   { name: "ltSingerFiles", maxCount: 20 },
 ]);
 
-movieRouter.post("/", authMiddleware, upload, createMovie);
+movieRouter.post("/", authMiddleware, requireAdmin, upload, createMovie);
 movieRouter.get("/", getMovies);
 movieRouter.get("/:id", getMovieById);
-movieRouter.delete("/:id", authMiddleware, deleteMovie);
+movieRouter.delete("/:id", authMiddleware, requireAdmin, deleteMovie);
 
 export default movieRouter;

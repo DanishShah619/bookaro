@@ -7,4 +7,13 @@ const userRouter = express.Router();
 userRouter.post("/register", authLimiter, registerUser);
 userRouter.post('/login', authLimiter, login);
 
+userRouter.get("/", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const users = await User.find({}).select("-password").lean();
+    return res.json({ success: true, items: users });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 export default userRouter;
