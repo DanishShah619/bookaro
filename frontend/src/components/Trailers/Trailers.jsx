@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { trailersStyles, trailersCSS } from "../../assets/dummyStyles";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const TRAILERS_POLL_INTERVAL_MS = 30000;
 const PLACEHOLDER_THUMB =
   "https://placehold.co/800x450?text=No+Thumbnail";

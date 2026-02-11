@@ -4,7 +4,7 @@ import { releasesStyles } from "../../assets/dummyStyles";
 import { BeamsBackground } from "../ui/beams-background";
 import { StaggerText } from "../ui/stagger-text";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const PLACEHOLDER_IMG = "https://placehold.co/400x600?text=No+Image";
 
 const normalizeApiBase = (base) => base.replace(/\/+$/, ""); // remove trailing slash

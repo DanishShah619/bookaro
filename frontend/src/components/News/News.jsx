@@ -9,7 +9,7 @@ import {
 import { sampleNews as fallbackNews } from "./newdummydata";
 import { newsStyles, newsCSS } from "../../assets/dummyStyles";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const News = () => {
   const [newsItems, setNewsItems] = useState(fallbackNews);
@@ -24,7 +24,7 @@ const News = () => {
     setSubStatus("loading");
     setSubMsg("");
     try {
-      const res = await fetch("http://localhost:5000/api/subscribers", {
+      const res = await fetch(`${API_BASE}/api/subscribers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

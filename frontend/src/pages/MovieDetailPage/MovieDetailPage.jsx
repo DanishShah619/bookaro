@@ -16,7 +16,7 @@ import { toast } from "react-toastify";
 import { movieDetailHStyles } from "../../assets/dummyStyles";
 import { ShinyButton } from "../../components/ui/shiny-button";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const ROWS = [
   { id: "A", type: "standard", count: 8 },
   { id: "B", type: "standard", count: 8 },

@@ -1,6 +1,8 @@
 import express from "express";
 import multer from "multer";
 import path from "path";
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 import {
   createMovie,
   getMovies,
@@ -12,15 +14,19 @@ import requireAdmin from "../middlewares/requireAdmin.js";
 
 const movieRouter = express.Router();
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(process.cwd(), "uploads")); // ➜ ./uploads
-  },
-  filename: (req, file, cb) => {
-    const unique = Date.now() + "-" + Math.round(Math.random() * 1e5);
-    const ext = path.extname(file.originalname);
-    // prefix for clarity
-    cb(null, `movie-${unique}${ext}`);
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "movie_booking_uploads",
+    allowed_formats: ["jpg", "jpeg", "png", "webp", "mp4", "mkv"],
+    resource_type: "auto", // automatically detect if it's an image or video
   },
 });
 
@@ -28,7 +34,7 @@ const upload = multer({ storage }).fields([
   { name: "poster", maxCount: 1 },
   { name: "trailerUrl", maxCount: 1 },
   { name: "videoUrl", maxCount: 1 },
-  { name: "ltThumbnail", maxCount: 1 }, // ✅ FIXED name
+  { name: "ltThumbnail", maxCount: 1 },
   { name: "castFiles", maxCount: 20 },
   { name: "directorFiles", maxCount: 20 },
   { name: "producerFiles", maxCount: 20 },

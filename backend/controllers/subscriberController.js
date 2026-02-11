@@ -1,5 +1,8 @@
 // controllers/subscriberController.js
 import Subscriber from "../models/subscriberModel.js";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 /**
  * POST /api/subscribers
@@ -25,6 +28,26 @@ export async function subscribe(req, res) {
     }
 
     await Subscriber.create({ email });
+
+    // Send welcome email via Resend (fire and forget, don't await/block the response)
+    if (process.env.RESEND_API_KEY) {
+      resend.emails.send({
+        from: "CineNews <onboarding@resend.dev>", // Replace with your verified domain when in production
+        to: email,
+        subject: "Welcome to CineNews! 🎬",
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #e50914;">Welcome to CineNews! 🍿</h1>
+            <p>Hi there,</p>
+            <p>Thanks for subscribing to <strong>CineNews</strong>. You're now on the list to get the latest movie drops, exclusive offers, and showtime alerts straight to your inbox.</p>
+            <p>Stay tuned for cinematic greatness.</p>
+            <br/>
+            <p>Cheers,</p>
+            <p><strong>The CineVerse Team</strong></p>
+          </div>
+        `,
+      }).catch(err => console.error("Resend email failed:", err));
+    }
 
     return res.status(201).json({
       success: true,

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Movie from "../models/movieModel.js";
 import path from "path";
 import fs from "fs";
+import { v2 as cloudinary } from "cloudinary";
 
 const API_BASE = process.env.API_BASE_URL || "http://localhost:5000";
 
@@ -24,6 +25,30 @@ const extractFilenameFromUrl = (u) => {
 };
 
 const tryUnlinkUploadUrl = (urlOrFilename) => {
+  if (!urlOrFilename) return;
+
+  // If it's a Cloudinary URL, extract public_id and delete from Cloudinary
+  if (urlOrFilename.includes("res.cloudinary.com")) {
+    try {
+      // url format: https://res.cloudinary.com/cloudname/image/upload/v1234/folder/filename.ext
+      const parts = urlOrFilename.split("/upload/");
+      if (parts.length === 2) {
+        // remove version string (e.g. v12345/) if present
+        let idPart = parts[1].replace(/^v\d+\//, "");
+        // remove file extension
+        const publicId = idPart.substring(0, idPart.lastIndexOf(".")) || idPart;
+        
+        cloudinary.uploader.destroy(publicId).catch(err => {
+          console.warn("Failed to destroy Cloudinary asset:", publicId, err?.message);
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to parse Cloudinary URL for deletion:", urlOrFilename);
+    }
+    return;
+  }
+
+  // Fallback: local file deletion
   const fn = extractFilenameFromUrl(urlOrFilename);
   if (!fn) return;
   const filepath = path.join(process.cwd(), "uploads", fn);

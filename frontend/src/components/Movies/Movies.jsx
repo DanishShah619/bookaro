@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { moviesStyles } from "../../assets/dummyStyles";
 import { ExpandableCard } from "../ui/expandable-card";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const PLACEHOLDER = "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800&h=600&fit=crop";
 
 function getUploadUrl(maybe) {

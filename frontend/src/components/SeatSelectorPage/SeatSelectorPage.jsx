@@ -14,7 +14,7 @@ import { toast } from "react-toastify";
 import { seatSelectorHStyles } from "../../assets/dummyStyles";
 import InteractiveHoverButton from "../ui/interactive-hover-button";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 /* layout */
 const ROWS = [

@@ -10,7 +10,7 @@ import { BeamsBackground } from "../ui/beams-background";
 import { StaggerText } from "../ui/stagger-text";
 
 // API base
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 /* ---------- small data-URI placeholder (offline-safe) ---------- */
 function makePlaceholderDataUri(width = 320, height = 480, text = "No Image") {

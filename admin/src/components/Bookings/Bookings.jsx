@@ -33,7 +33,7 @@ function getStoredToken() {
 }
 
 // API base — change with Vite env var if needed
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 export default function Bookings() {
   const [selectedMovie, setSelectedMovie] = useState("");

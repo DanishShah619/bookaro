@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { styles5, customStyles } from "../../assets/dummyStyles";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 // ---------- helpers ----------
 function getStoredToken() {

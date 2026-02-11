@@ -13,7 +13,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { loginStyles } from "../../assets/dummyStyles";
 
 // API base (points to /api/auth)
-const API_BASE = "http://localhost:5000/api/auth";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000") + "/api/auth";
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
