@@ -60,6 +60,7 @@ const bookingSchema = new Schema(
     paymentMethod: { type: String, default: "" },
     paymentSessionId: { type: String, default: "" },
     paymentIntentId: { type: String, default: "" },
+    holdExpiresAt: { type: Date, default: null, index: true },
 
     // store stripe session meta (optional)
     stripeSession: { type: Schema.Types.Mixed, default: null },
@@ -72,5 +73,6 @@ const bookingSchema = new Schema(
 // Compound index for efficient occupied seat queries
 bookingSchema.index({ showtime: 1, auditorium: 1, status: 1 });
 bookingSchema.index({ movieId: 1, showtime: 1, auditorium: 1 });
+bookingSchema.index({ status: 1, holdExpiresAt: 1 });
 
 export default mongoose.models.Booking || mongoose.model("Booking", bookingSchema);

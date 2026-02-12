@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Booking from "../models/bookingModel.js";
 import Movie from "../models/movieModel.js";
+import SeatLock from "../models/seatLockModel.js";
 import Stripe from "stripe";
 import dotenv from "dotenv";
 dotenv.config();
@@ -12,6 +13,7 @@ const STRIPE_API_VERSION = "2025-01-27.acacia";
 const CHECKOUT_SESSION_EXPIRES_AFTER_SECONDS = 31 * 60;
 const RECLINER_ROWS = new Set(["D", "E"]);
 const BLOCKING_STATUSES = ["pending", "paid", "confirmed", "active", "upcoming"];
+const FINAL_LOCK_STATUSES = ["paid"];
 
 function getStripeOrThrow() {
   if (!STRIPE_SECRET_KEY) throw new Error("Missing STRIPE_SECRET_KEY in env");
@@ -69,6 +71,134 @@ function buildMovieMatchClause(movieId, movieName) {
     if (!seen.has(k)) { seen.add(k); unique.push(c); }
   }
   return unique;
+}
+
+function getMovieLockKey(movieId, movieName) {
+  const id = movieId ? String(movieId).trim() : "";
+  if (id) return `id:${id}`;
+  return `name:${String(movieName || "").trim().toLowerCase()}`;
+}
+
+function buildSeatLockKey({ movieId, movieName, showtime, auditorium, seatId }) {
+  return [
+    getMovieLockKey(movieId, movieName),
+    new Date(showtime).toISOString(),
+    String(auditorium || "Audi 1").trim().toLowerCase(),
+    String(seatId || "").trim().toUpperCase(),
+  ].join("|");
+}
+
+function activeBookingStatusQuery(now = new Date()) {
+  const legacyHoldCutoff = new Date(now.getTime() - CHECKOUT_SESSION_EXPIRES_AFTER_SECONDS * 1000);
+  return {
+    $or: [
+      { status: { $in: BLOCKING_STATUSES.filter((s) => s !== "pending") } },
+      {
+        status: "pending",
+        $or: [
+          { holdExpiresAt: { $gt: now } },
+          { holdExpiresAt: null, createdAt: { $gt: legacyHoldCutoff } },
+        ],
+      },
+    ],
+  };
+}
+
+async function cleanupExpiredSeatLocks(now = new Date()) {
+  await SeatLock.deleteMany({
+    status: "pending",
+    expiresAt: { $lte: now },
+  }).exec();
+
+  await Booking.updateMany(
+    {
+      status: "pending",
+      paymentStatus: "pending",
+      $or: [
+        { holdExpiresAt: { $lte: now } },
+        {
+          holdExpiresAt: null,
+          createdAt: {
+            $lte: new Date(now.getTime() - CHECKOUT_SESSION_EXPIRES_AFTER_SECONDS * 1000),
+          },
+        },
+      ],
+    },
+    {
+      status: "cancelled",
+      paymentStatus: "failed",
+      "stripeSession.releaseReason": "hold_expired",
+    }
+  ).exec();
+}
+
+async function acquireSeatLocks({ bookingId, userId, movieId, movieName, showtime, auditorium, seats, expiresAt }) {
+  const seatIds = Array.from(new Set((seats || []).map((s) => String(s.seatId || s.id || s).trim().toUpperCase()).filter(Boolean)));
+  if (!seatIds.length) return;
+
+  await cleanupExpiredSeatLocks();
+
+  const docs = seatIds.map((seatId) => ({
+    lockKey: buildSeatLockKey({ movieId, movieName, showtime, auditorium, seatId }),
+    bookingId,
+    userId,
+    movieId: movieId && mongoose.Types.ObjectId.isValid(String(movieId)) ? new mongoose.Types.ObjectId(String(movieId)) : undefined,
+    movieName: String(movieName || ""),
+    showtime,
+    auditorium,
+    seatId,
+    status: expiresAt ? "pending" : "paid",
+    expiresAt: expiresAt || null,
+  }));
+
+  try {
+    await SeatLock.insertMany(docs, { ordered: true });
+  } catch (err) {
+    if (err?.code === 11000 || err?.writeErrors?.some((w) => w?.code === 11000)) {
+      const existing = await SeatLock.find(
+        { lockKey: { $in: docs.map((d) => d.lockKey) } },
+        { seatId: 1 }
+      ).lean().exec();
+      const seatsTaken = existing.map((d) => d.seatId).filter(Boolean);
+      const conflict = new Error("Some seats are no longer available");
+      conflict.statusCode = 409;
+      conflict.seats = seatsTaken.length ? seatsTaken : seatIds;
+      throw conflict;
+    }
+    throw err;
+  }
+}
+
+async function releaseSeatLocksForBooking(bookingId) {
+  if (!bookingId) return;
+  await SeatLock.deleteMany({
+    bookingId,
+    status: { $ne: "paid" },
+  }).exec();
+}
+
+async function deleteSeatLocksForBooking(bookingId) {
+  if (!bookingId) return;
+  await SeatLock.deleteMany({ bookingId }).exec();
+}
+
+async function markSeatLocksPaid(bookingId) {
+  if (!bookingId) return;
+  await SeatLock.updateMany(
+    { bookingId },
+    { status: "paid", expiresAt: null }
+  ).exec();
+}
+
+function assertBookingOwner(booking, user) {
+  if (!booking || !user) return;
+  const bookingUserId = booking.userId ? String(booking.userId) : "";
+  const requestUserId = String(user._id || user.id || "");
+  if (bookingUserId && requestUserId && bookingUserId !== requestUserId) {
+    const err = new Error("Booking does not belong to authenticated user");
+    err.statusCode = 403;
+    throw err;
+  }
 }
 
 function computeTotalPaiseFromSeats(movie = {}, seats = [], options = {}) {
@@ -141,7 +271,7 @@ function normalizeSeatsFromInput(rawSeats = [], seatIdsFromBody = [], movie = {}
   return normalized;
 }
 
-async function markCheckoutSessionPaid(sessionObj) {
+async function markCheckoutSessionPaid(sessionObj, options = {}) {
   const bookingId = sessionObj?.metadata?.bookingId;
   if (!bookingId || !mongoose.Types.ObjectId.isValid(bookingId)) {
     throw new Error("Invalid bookingId in session metadata");
@@ -151,11 +281,16 @@ async function markCheckoutSessionPaid(sessionObj) {
     throw new Error(`Payment not completed (status=${sessionObj.payment_status})`);
   }
 
+  const query = {
+    _id: bookingId,
+    $or: [{ paymentSessionId: sessionObj.id }, { paymentSessionId: "" }],
+  };
+  if (options.user?._id || options.user?.id) {
+    query.userId = new mongoose.Types.ObjectId(String(options.user._id || options.user.id));
+  }
+
   const booking = await Booking.findOneAndUpdate(
-    {
-      _id: bookingId,
-      $or: [{ paymentSessionId: sessionObj.id }, { paymentSessionId: "" }],
-    },
+    query,
     {
       paymentStatus: "paid",
       status: "confirmed",
@@ -170,21 +305,32 @@ async function markCheckoutSessionPaid(sessionObj) {
     { new: true }
   ).exec();
 
-  if (!booking) throw new Error("Booking not found for this Stripe session");
+  if (!booking) {
+    const err = new Error(options.user ? "Booking not found for this authenticated user" : "Booking not found for this Stripe session");
+    err.statusCode = options.user ? 404 : 500;
+    throw err;
+  }
+  assertBookingOwner(booking, options.user);
+  await markSeatLocksPaid(booking._id);
   return booking;
 }
 
-async function releasePendingCheckoutSession(sessionObj, reason = "failed") {
+async function releasePendingCheckoutSession(sessionObj, reason = "failed", options = {}) {
   const bookingId = sessionObj?.metadata?.bookingId;
   if (!bookingId || !mongoose.Types.ObjectId.isValid(bookingId)) return null;
 
-  return Booking.findOneAndUpdate(
-    {
-      _id: bookingId,
-      paymentStatus: "pending",
-      status: "pending",
-      $or: [{ paymentSessionId: sessionObj.id }, { paymentSessionId: "" }],
-    },
+  const query = {
+    _id: bookingId,
+    paymentStatus: "pending",
+    status: "pending",
+    $or: [{ paymentSessionId: sessionObj.id }, { paymentSessionId: "" }],
+  };
+  if (options.user?._id || options.user?.id) {
+    query.userId = new mongoose.Types.ObjectId(String(options.user._id || options.user.id));
+  }
+
+  const booking = await Booking.findOneAndUpdate(
+    query,
     {
       paymentStatus: "failed",
       status: "cancelled",
@@ -198,6 +344,13 @@ async function releasePendingCheckoutSession(sessionObj, reason = "failed") {
     },
     { new: true }
   ).exec();
+  if (!booking && options.user) {
+    const err = new Error("Booking not found for this authenticated user");
+    err.statusCode = 404;
+    throw err;
+  }
+  if (booking) await releaseSeatLocksForBooking(booking._id);
+  return booking;
 }
 
 /* ---------- Controllers ---------- */
@@ -205,6 +358,7 @@ async function releasePendingCheckoutSession(sessionObj, reason = "failed") {
 export async function createBooking(req, res) {
   try {
     if (!req.user) return res.status(401).json({ success: false, message: "Authentication required to create booking" });
+    await cleanupExpiredSeatLocks();
 
     const body = req.body || {};
     const movieId = body.movieId || null;
@@ -242,13 +396,17 @@ export async function createBooking(req, res) {
     // conflict detection (minute window)
     const startWindow = new Date(showtime);
     const endWindow = new Date(startWindow.getTime() + 60 * 1000);
+    const activeStatusQuery = activeBookingStatusQuery();
     const conflictQuery = {
       showtime: { $gte: startWindow, $lt: endWindow },
       auditorium,
-      status: { $in: BLOCKING_STATUSES }
+      ...activeStatusQuery
     };
     const movieClauses = buildMovieMatchClause(movieId, movieName);
-    if (movieClauses.length > 0) conflictQuery.$or = movieClauses;
+    if (movieClauses.length > 0) {
+      delete conflictQuery.$or;
+      conflictQuery.$and = [activeStatusQuery, { $or: movieClauses }];
+    }
 
     const existingBookings = await Booking.find(conflictQuery, { seats: 1 }).lean().exec();
     const occupiedSeats = new Set();
@@ -290,7 +448,13 @@ export async function createBooking(req, res) {
         durationMins: 0
       };
 
+    const bookingId = new mongoose.Types.ObjectId();
+    const holdExpiresAt = paymentMethod === "card"
+      ? new Date(Date.now() + CHECKOUT_SESSION_EXPIRES_AFTER_SECONDS * 1000)
+      : null;
+
     const doc = {
+      _id: bookingId,
       userId: req.user && req.user._id ? new mongoose.Types.ObjectId(req.user._id) : undefined,
       customer,
       movie: movieSnapshot,
@@ -306,14 +470,44 @@ export async function createBooking(req, res) {
       status: paymentMethod === "card" ? "pending" : "confirmed",
       paymentStatus: paymentMethod === "card" ? "pending" : "paid",
       paymentMethod,
+      holdExpiresAt,
       meta: { rawRequest: { seatIds: seatIdList, clientSeats: rawSeats } }
     };
 
-    const booking = await Booking.create(doc);
+    try {
+      await acquireSeatLocks({
+        bookingId,
+        userId: doc.userId,
+        movieId: doc.movieId,
+        movieName: doc.movieName || movieName,
+        showtime,
+        auditorium,
+        seats: normalizedSeats,
+        expiresAt: holdExpiresAt,
+      });
+    } catch (lockErr) {
+      if (lockErr.statusCode === 409) {
+        return res.status(409).json({
+          success: false,
+          message: lockErr.message,
+          seats: lockErr.seats || [],
+        });
+      }
+      throw lockErr;
+    }
+
+    let booking;
+    try {
+      booking = await Booking.create(doc);
+    } catch (createErr) {
+      await releaseSeatLocksForBooking(bookingId);
+      throw createErr;
+    }
 
     if (paymentMethod === "card") {
       let stripe;
       try { stripe = getStripeOrThrow(); } catch (err) {
+        await releaseSeatLocksForBooking(booking._id);
         await Booking.findByIdAndDelete(booking._id).catch(() => { });
         return res.status(500).json({ success: false, message: "Payment not configured", error: err.message });
       }
@@ -349,6 +543,7 @@ export async function createBooking(req, res) {
           checkout: { id: session.id, url: session.url }
         });
       } catch (stripeErr) {
+        await releaseSeatLocksForBooking(booking._id);
         await Booking.findByIdAndDelete(booking._id).catch(() => { });
         return res.status(500).json({ success: false, message: "Failed to create Stripe session", error: String(stripeErr.message || stripeErr) });
       }
@@ -427,6 +622,7 @@ export async function deleteBooking(req, res) {
     if (!id || !mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ success: false, message: "Invalid id" });
     const b = await Booking.findByIdAndDelete(id).lean().exec();
     if (!b) return res.status(404).json({ success: false, message: "Booking not found" });
+    await deleteSeatLocksForBooking(id);
     return res.json({ success: true, message: "Booking deleted" });
   } catch (err) {
     console.error("deleteBooking error:", err && err.stack ? err.stack : err);
@@ -445,9 +641,19 @@ export async function getOccupiedSeats(req, res) {
 
     const start = new Date(parsed);
     const end = new Date(start.getTime() + 60 * 1000);
-    const q = { showtime: { $gte: start, $lt: end }, auditorium, status: { $in: BLOCKING_STATUSES } };
+    await cleanupExpiredSeatLocks();
+
+    const activeStatusQuery = activeBookingStatusQuery();
+    const q = {
+      showtime: { $gte: start, $lt: end },
+      auditorium,
+      ...activeStatusQuery
+    };
     const movieClauses = buildMovieMatchClause(movieId, movieName);
-    if (movieClauses.length > 0) q.$or = movieClauses;
+    if (movieClauses.length > 0) {
+      delete q.$or;
+      q.$and = [activeStatusQuery, { $or: movieClauses }];
+    }
 
     if (!Booking) {
       console.error("Booking model undefined");
@@ -468,6 +674,25 @@ export async function getOccupiedSeats(req, res) {
         if (seatId) occupiedSet.add(seatId);
       }
     }
+
+    const lockQuery = {
+      showtime: { $gte: start, $lt: end },
+      auditorium,
+      $or: [
+        { status: { $in: FINAL_LOCK_STATUSES } },
+        { status: "pending", expiresAt: { $gt: new Date() } },
+      ],
+    };
+    if (movieId && mongoose.Types.ObjectId.isValid(String(movieId))) {
+      lockQuery.movieId = new mongoose.Types.ObjectId(String(movieId));
+    } else if (movieName) {
+      lockQuery.movieName = String(movieName);
+    }
+    const locks = await SeatLock.find(lockQuery, { seatId: 1 }).lean().exec();
+    for (const lock of locks || []) {
+      if (lock?.seatId) occupiedSet.add(String(lock.seatId).trim().toUpperCase());
+    }
+
     return res.json({ success: true, occupied: [...occupiedSet] });
   } catch (err) {
     console.error("getOccupiedSeats error:", err && err.stack ? err.stack : err);
@@ -489,7 +714,7 @@ export async function cancelCheckoutSession(req, res) {
     if (!sessionObj) return res.status(404).json({ success: false, message: "Session not found" });
 
     if (sessionObj.payment_status === "paid") {
-      const booking = await markCheckoutSessionPaid(sessionObj);
+      const booking = await markCheckoutSessionPaid(sessionObj, { user: req.user });
       return res.json({ success: true, message: "Payment already completed", booking });
     }
 
@@ -497,10 +722,13 @@ export async function cancelCheckoutSession(req, res) {
       sessionObj = await stripe.checkout.sessions.expire(sessionId);
     }
 
-    const booking = await releasePendingCheckoutSession(sessionObj, "cancelled");
+    const booking = await releasePendingCheckoutSession(sessionObj, "cancelled", { user: req.user });
     return res.json({ success: true, booking });
   } catch (err) {
     console.error("cancelCheckoutSession error:", err && err.stack ? err.stack : err);
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ success: false, message: err.message });
+    }
     return res.status(500).json({ success: false, message: "Server error", error: String(err.message || err) });
   }
 }
@@ -521,11 +749,14 @@ export async function confirmPayment(req, res) {
       return res.status(400).json({ success: false, message: `Payment not completed (status=${sessionObj.payment_status})` });
     }
 
-    const booking = await markCheckoutSessionPaid(sessionObj);
+    const booking = await markCheckoutSessionPaid(sessionObj, { user: req.user });
 
     return res.json({ success: true, booking });
   } catch (err) {
     console.error("confirmPayment error:", err && err.stack ? err.stack : err);
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ success: false, message: err.message });
+    }
     return res.status(500).json({ success: false, message: "Server error", error: String(err.message || err) });
   }
 }

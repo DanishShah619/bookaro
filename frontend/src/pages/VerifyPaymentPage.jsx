@@ -5,6 +5,15 @@ import axios from "axios";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
+function getStoredToken() {
+  return (
+    localStorage.getItem("token") ||
+    localStorage.getItem("authToken") ||
+    localStorage.getItem("accessToken") ||
+    ""
+  );
+}
+
 const VerifyPaymentPage = () => {
   const [statusMsg, setStatusMsg] = useState("Verifying payment...");
   const navigate = useNavigate();
@@ -19,7 +28,7 @@ const VerifyPaymentPage = () => {
       // Trim session_id to remove accidental whitespace
       const rawSession = params.get("session_id");
       const session_id = rawSession ? rawSession.trim() : null;
-      const token = localStorage.getItem("token");
+      const token = getStoredToken();
       const isCancelRoute = location.pathname === "/cancel";
 
       // If user canceled on Stripe-hosted checkout page
@@ -80,6 +89,10 @@ const VerifyPaymentPage = () => {
         } else if (status === 400) {
           setStatusMsg(
             serverMsg || "Payment not completed or invalid request."
+          );
+        } else if (status === 401 || status === 403) {
+          setStatusMsg(
+            "Your payment return link is valid, but your login session expired. If payment completed, the server webhook will confirm your booking shortly. Please log in and check your bookings."
           );
         } else {
           setStatusMsg(
