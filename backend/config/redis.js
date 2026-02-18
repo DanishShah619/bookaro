@@ -7,8 +7,8 @@ import { createClient } from "redis";
 const REDIS_URL = process.env.REDIS_URL || "";
 
 // TTL constants (seconds)
-export const SEAT_LOCK_TTL_SECONDS = 5 * 60; // 5 minutes — selection lock
-export const CHECKOUT_LOCK_TTL_SECONDS = 31 * 60; // 31 minutes — extended during checkout
+export const SEAT_LOCK_TTL_SECONDS = 5 * 60;       // 5 minutes — selection lock
+export const CHECKOUT_LOCK_TTL_SECONDS = 15 * 60;  // 15 minutes — extended during checkout
 
 let redisClient = null;
 let redisAvailable = false;
