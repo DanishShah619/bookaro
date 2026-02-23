@@ -12,6 +12,7 @@ import {
 import { trailersStyles, trailersCSS } from "../../assets/dummyStyles";
 
 const API_BASE = "http://localhost:5000";
+const TRAILERS_POLL_INTERVAL_MS = 30000;
 const PLACEHOLDER_THUMB =
   "https://via.placeholder.com/800x450?text=No+Thumbnail";
   
@@ -185,10 +186,19 @@ const Trailers = () => {
 
   useEffect(() => {
     const ac = new AbortController();
-    setLoading(true);
-    setError(null);
+    let isMounted = true;
+    let isRequestInFlight = false;
+    let hasLoadedOnce = false;
 
-    async function load() {
+    async function load({ showLoading = false } = {}) {
+      if (isRequestInFlight) return;
+      isRequestInFlight = true;
+
+      if (showLoading) {
+        setLoading(true);
+        setError(null);
+      }
+
       try {
         // request latestTrailers type from backend
         const url = `${API_BASE}/api/movies?type=latestTrailers&limit=50`;
@@ -200,20 +210,39 @@ const Trailers = () => {
         // map each movie doc to the trailer item the UI expects
         const mapped = items.map(mapMovieToTrailerItem);
         console.log(mapped);
+
+        if (!isMounted) return;
+
         setTrailers(mapped);
-        setFeaturedTrailer(mapped[0] || null);
+        setFeaturedTrailer((current) => {
+          if (!mapped.length) return null;
+          if (!current) return mapped[0];
+          return mapped.find((trailer) => trailer.id === current.id) || mapped[0];
+        });
+        hasLoadedOnce = true;
+        setError(null);
         setLoading(false);
       } catch (err) {
         if (err.name === "AbortError") return;
         console.error("Failed to load trailers", err);
-        setError("Failed to load trailers");
-         setLoading(false);
-       }
-     }
+        if (!hasLoadedOnce && isMounted) {
+          setError("Failed to load trailers");
+          setLoading(false);
+        }
+      } finally {
+        isRequestInFlight = false;
+      }
+    }
 
-     load();
-     return () => ac.abort();
-   }, []);
+    load({ showLoading: true });
+    const pollId = window.setInterval(load, TRAILERS_POLL_INTERVAL_MS);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(pollId);
+      ac.abort();
+    };
+  }, []);
 
 
  
