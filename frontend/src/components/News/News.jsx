@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Clock,
   Calendar,
@@ -6,10 +6,56 @@ import {
   Image as ImageIcon,
   Sparkles,
 } from "lucide-react";
-import { sampleNews } from "./newdummydata";
+import { sampleNews as fallbackNews } from "./newdummydata";
 import { newsStyles, newsCSS } from "../../assets/dummyStyles";
 
+const API_BASE = "http://localhost:5000";
+
 const News = () => {
+  const [newsItems, setNewsItems] = useState(fallbackNews);
+
+  useEffect(() => {
+    const ac = new AbortController();
+
+    async function loadNews() {
+      try {
+        const res = await fetch(`${API_BASE}/api/news/acting?limit=7`, {
+          signal: ac.signal,
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const json = await res.json();
+        const items = Array.isArray(json.items) ? json.items : [];
+
+        if (items.length) {
+          setNewsItems(
+            items.map((item, index) => {
+              const fallback = fallbackNews[index % fallbackNews.length];
+              return {
+                ...item,
+                image: item.image || fallback.image,
+                category: item.category || fallback.category,
+                excerpt: item.excerpt || fallback.excerpt,
+                time: item.time || fallback.time || "",
+                date: item.date || fallback.date || "",
+              };
+            })
+          );
+        }
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          console.error("Failed to load acting news", err);
+        }
+      }
+    }
+
+    loadNews();
+    return () => ac.abort();
+  }, []);
+
+  const sampleNews = newsItems.length ? newsItems : fallbackNews;
+
   return (
     <div className={newsStyles.container}>
       {/* Keep fonts the same — Monoton for logo, Roboto for body */}

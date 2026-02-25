@@ -192,19 +192,19 @@ const Footer = () => {
                 <div className={footerStyles.contactIconContainer}>
                   <Mail className={footerStyles.contactIcon} />
                 </div>
-                <span className={footerStyles.contactText}>contact@hexagonsservices.com</span>
+                <span className={footerStyles.contactText}>shanildanshah@gmail.com</span>
               </li>
               <li className={footerStyles.contactItem}>
                 <div className={footerStyles.contactIconContainer}>
                   <Phone className={footerStyles.contactIcon} />
                 </div>
-                <span className={footerStyles.contactText}>+91 8299431275</span>
+                <span className={footerStyles.contactText}>+91 9123707332</span>
               </li>
               <li className={footerStyles.contactItem}>
                 <div className={footerStyles.contactIconContainer}>
                   <MapPin className={footerStyles.contactIcon} />
                 </div>
-                <span className={footerStyles.contactText}>Lucknow, India</span>
+                <span className={footerStyles.contactText}>West Bengal, India</span>
               </li>
             </ul>
           </div>
@@ -219,7 +219,7 @@ const Footer = () => {
 
         {/* Bottom bar */}
         <div className={footerStyles.bottomBar}>
-          {/* Center: Designed by (plain text) + Hexagon Digital Services (link only) */}
+          {/* Center: Designed by (plain text) + Danish Shanil Shah (link only) */}
           <div className={footerStyles.designedBy}>
             <span className={footerStyles.designedByText}>Designed by</span>
             <a
@@ -227,9 +227,9 @@ const Footer = () => {
               target="_blank"
               rel="noopener noreferrer"
               className={footerStyles.designedByLink}
-              aria-label="Hexagon Digital Services"
+              aria-label="Danish Shanil Shah"
             >
-              Hexagon Digital Services
+              Danish Shanil Shah
             </a>
           </div>
           

@@ -22,6 +22,7 @@ services:
       DATABASE_URL: mongodb://mongo:27017/moviebooking
       JWT_SECRET: ${JWT_SECRET:-change-me-in-docker-compose}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      GNEWS_API_KEY: ${GNEWS_API_KEY:-}
       API_BASE_URL: http://localhost:5000
       CLIENT_URL: http://localhost:5173
     ports:

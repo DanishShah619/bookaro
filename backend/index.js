@@ -6,6 +6,7 @@ import path from 'path';
 import movieRouter from './routes/movieRouter.js';
 import userRouter from './routes/userRouter.js';
 import bookingRouter from './routes/bookingRouter.js';
+import newsRouter from './routes/newsRouter.js';
 import { globalLimiter, authLimiter } from './middlewares/rateLimiter.js';
 
 const app = express();
@@ -25,6 +26,7 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use("/api/auth", userRouter)
 app.use("/api/movies", movieRouter);
 app.use("/api/bookings", bookingRouter);
+app.use("/api/news", newsRouter);
 
 app.get('/', (req, res) => {
     res.send('API Working');
