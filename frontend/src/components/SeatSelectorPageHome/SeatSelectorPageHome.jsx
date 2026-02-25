@@ -72,7 +72,7 @@ const getStoredUserEmail = () => {
       const u = JSON.parse(raw);
       return u?.email || "";
     }
-  } catch (e) {}
+  } catch { /* Ignore non-critical errors. */ }
   return "";
 };
 
@@ -194,7 +194,7 @@ export default function SeatSelectorPage() {
           if (!isNaN(ts) && ts === providedTs) return { ...s, _iso: iso };
         }
       }
-    } catch (e) {}
+    } catch { /* Ignore non-critical errors. */ }
     return null;
   }, [movie, slotKey]);
 
@@ -258,7 +258,7 @@ export default function SeatSelectorPage() {
       });
       try {
         localStorage.setItem(storageKey, JSON.stringify([...set]));
-      } catch (e) {}
+      } catch { /* Ignore non-critical errors. */ }
     };
 
     const fetchBooked = async () => {
@@ -318,7 +318,7 @@ export default function SeatSelectorPage() {
             setBooked(new Set());
             try {
               localStorage.setItem(storageKey, JSON.stringify([]));
-            } catch (e) {}
+            } catch { /* Ignore non-critical errors. */ }
           }
         }
         return;
@@ -372,7 +372,7 @@ export default function SeatSelectorPage() {
             setBooked(s);
             try {
               localStorage.setItem(storageKey, JSON.stringify([...s]));
-            } catch (e) {}
+            } catch { /* Ignore non-critical errors. */ }
             return;
           }
         } catch (e) {
@@ -466,7 +466,7 @@ export default function SeatSelectorPage() {
           ]);
           try {
             localStorage.setItem(storageKey, JSON.stringify([...newBooked]));
-          } catch (e) {}
+          } catch { /* Ignore non-critical errors. */ }
           window.location.href = data.checkout.url;
           return;
         }
@@ -479,7 +479,7 @@ export default function SeatSelectorPage() {
         setSelected(new Set());
         try {
           localStorage.setItem(storageKey, JSON.stringify([...newBooked]));
-        } catch (e) {}
+        } catch { /* Ignore non-critical errors. */ }
         toast.success(
           `${seatsArr.length} seat(s) reserved — proceed to payment`
         );
@@ -513,7 +513,7 @@ export default function SeatSelectorPage() {
             occupied.forEach((s) => next.add(normalizeSeatId(s)));
             try {
               localStorage.setItem(storageKey, JSON.stringify([...next]));
-            } catch (e) {}
+            } catch { /* Ignore non-critical errors. */ }
             return next;
           });
           setSelected((prev) => {

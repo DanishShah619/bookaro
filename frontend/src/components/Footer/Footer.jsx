@@ -19,7 +19,6 @@ import {
 import { footerStyles } from '../../assets/dummyStyles';
 
 const Footer = () => {
-  const currentYear = new Date().getFullYear();
   const [isVisible, setIsVisible] = useState(false);
   
   const scrollToTop = () => {

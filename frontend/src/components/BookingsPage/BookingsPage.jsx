@@ -72,7 +72,7 @@ function getImageUrl(maybe) {
       }
       // leave remote absolute urls intact (S3 etc.)
       return s;
-    } catch (e) {
+    } catch {
       // fall through
     }
   }
@@ -84,7 +84,7 @@ function getImageUrl(maybe) {
   if (s.startsWith("uploads/")) return `${apiBase}/${s}`;
 
   // hostname-like "localhost:5000/uploads/..." (no protocol)
-  if (/^(localhost|127\.0\.0\.1)[:\/]/i.test(s)) {
+  if (/^(localhost|127\.0\.0\.1)[:/]/i.test(s)) {
     const parts = s.split("/uploads/");
     const filename = parts.length > 1 ? parts.pop() : s.split("/").pop();
     if (filename) return `${apiBase}/uploads/${filename}`;
@@ -156,7 +156,7 @@ export default function BookingsPage() {
             headers: { Authorization: `Bearer ${token}` },
             timeout: 15000,
           });
-        } catch (err) {
+        } catch {
           res = await axios.get(`${API_BASE}/api/bookings`, {
             headers: { Authorization: `Bearer ${token}` },
             timeout: 15000,
@@ -170,7 +170,6 @@ export default function BookingsPage() {
         else if (Array.isArray(data.bookings)) items = data.bookings;
         else if (Array.isArray(data.data)) items = data.data;
         else if (data.item && Array.isArray(data.item)) items = data.item;
-        else if (data.items && Array.isArray(data.items)) items = data.items;
         else if (data && data._id) items = [data];
 
         const normalized = items.map((b) => {

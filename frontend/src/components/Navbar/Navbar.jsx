@@ -38,7 +38,7 @@ const Navbar = () => {
           setIsLoggedIn(Boolean(parsed?.isLoggedIn));
           setUserEmail(parsed?.email || "");
           return;
-        } catch (err) {}
+        } catch { /* Ignore non-critical errors. */ }
       }
 
       const simpleFlag = localStorage.getItem("isLoggedIn");

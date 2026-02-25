@@ -25,7 +25,7 @@ const getUploadUrl = (maybeFilenameOrUrl) => {
       }
       // else return as-is (external absolute url)
       return maybeFilenameOrUrl;
-    } catch (e) {
+    } catch {
       // if URL parsing fails, fall through to filename handling
     }
   }

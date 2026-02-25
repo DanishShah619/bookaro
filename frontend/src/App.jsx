@@ -32,9 +32,7 @@ function ScrollToTop() {
     ) {
       try {
         window.history.scrollRestoration = "manual";
-      } catch (e) {
-        // ignore
-      }
+      } catch { /* Ignore non-critical errors. */ }
     }
   }, []);
 

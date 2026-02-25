@@ -71,7 +71,7 @@ const getStoredUserEmail = () => {
       const u = JSON.parse(raw);
       return u?.email || "";
     }
-  } catch (e) {}
+  } catch { /* Ignore non-critical errors. */ }
   return "";
 };
 
@@ -178,7 +178,7 @@ export default function SeatSelectorPage() {
           if (!isNaN(ts) && ts === providedTs) return { ...s, _iso: iso };
         }
       }
-    } catch (e) {}
+    } catch { /* Ignore non-critical errors. */ }
     return null;
   }, [slotsSource, slotKey]);
 
@@ -248,7 +248,7 @@ export default function SeatSelectorPage() {
     });
     try {
       localStorage.setItem(storageKey, JSON.stringify([...set]));
-    } catch (e) {}
+    } catch { /* Ignore non-critical errors. */ }
   };
 
   const fetchOccupied = async (opts = { fallbackToLocal: true }) => {
@@ -304,7 +304,7 @@ export default function SeatSelectorPage() {
       if (mountedRef.current) setBooked(new Set());
       try {
         localStorage.setItem(storageKey, JSON.stringify([]));
-      } catch (e) {}
+      } catch { /* Ignore non-critical errors. */ }
       return;
     } catch (err) {
       console.warn(
@@ -356,7 +356,7 @@ export default function SeatSelectorPage() {
           setBookedAndPruneSelection(normalized);
           try {
             localStorage.setItem(storageKey, JSON.stringify([...normalized]));
-          } catch (e) {}
+          } catch { /* Ignore non-critical errors. */ }
           return;
         }
       } catch (e) {
@@ -456,7 +456,7 @@ export default function SeatSelectorPage() {
       if (res?.data?.success && res?.data?.checkout?.url) {
         try {
           await fetchOccupied({ fallbackToLocal: false });
-        } catch (e) {}
+        } catch { /* Ignore non-critical errors. */ }
         window.location.href = res.data.checkout.url;
         return;
       }
@@ -498,7 +498,7 @@ export default function SeatSelectorPage() {
               storageKey,
               JSON.stringify([...arr, ...occupied])
             );
-          } catch (e) {}
+          } catch { /* Ignore non-critical errors. */ }
           toast.error(
             `Some seats were just booked by others: ${occupied.join(", ")}`
           );

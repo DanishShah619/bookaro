@@ -17,6 +17,15 @@ import { styles5, customStyles } from "../../assets/dummyStyles";
 const API_BASE = "http://localhost:5000";
 
 // ---------- helpers ----------
+function getStoredToken() {
+  return (
+    localStorage.getItem("token") ||
+    localStorage.getItem("authToken") ||
+    localStorage.getItem("accessToken") ||
+    ""
+  );
+}
+
 function normalizeApiBase(b) {
   return String(b || "").replace(/\/+$/, "");
 }
@@ -78,7 +87,7 @@ function getImageUrl(maybe) {
 
       // otherwise leave external absolute URL unchanged (S3, remote)
       return s;
-    } catch (e) {
+    } catch {
       // If URL parsing fails, fall through to treat as filename
     }
   }
@@ -120,7 +129,7 @@ function formatSlot(s) {
     const time = s.time || "";
     const ampm = s.ampm || "";
     return `${dayName} ${dateStr} • ${time} ${ampm}`.trim();
-  } catch (e) {
+  } catch {
     return `${s.date || ""} ${s.time || ""} ${s.ampm || ""}`;
   }
 }
@@ -260,9 +269,12 @@ export default function ListMoviesPage() {
 
     try {
       const targetId = item._id || item.id || id;
-      await axios.delete(`${API_BASE}/api/movies/${targetId}`);
+      const token = getStoredToken();
+      await axios.delete(`${API_BASE}/api/movies/${targetId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       setMovies((prev) => prev.filter((m) => (m._id || m.id) !== targetId));
-      if (selected && (selected._1d || selected.id) === targetId) setSelected(null);
+      if (selected && (selected._id || selected.id) === targetId) setSelected(null);
     } catch (err) {
       console.error("deleteMovie error:", err);
       alert("Failed to delete movie. See console for details.");
@@ -521,7 +533,7 @@ function DetailView({ item, onClose }) {
   const posterSrc = getImageUrl(item.poster) || getImageUrl(item.thumbnail) || PLACEHOLDER_POSTER;
 
   return (
-    <div className={styles5.detailContainer}>
+    <div className={styles5.movieDetailContainer}>
       <div className={styles5.detailHeaderContainer}>
         <div className="flex-1">
           <div className={styles5.detailTypeIndicator}>

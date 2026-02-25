@@ -22,6 +22,6 @@ bookingRouter.get("/occupied",getOccupiedSeats);
 
 // Specific static routes must come BEFORE dynamic routes like "/:id"
 bookingRouter.get("/my",authMiddleware, getBooking);
-bookingRouter.delete("/:id", deleteBooking);
+bookingRouter.delete("/:id", authMiddleware, deleteBooking);
 
 export default bookingRouter;

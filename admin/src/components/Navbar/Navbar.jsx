@@ -30,7 +30,9 @@ export default function Navbar() {
   }, [open, close]);
 
   // NavLink content - reuse in desktop & mobile
-  const NavItem = ({ to, Icon, label, end = false, onClick }) => (
+  const NavItem = ({ to, icon, label, end = false, onClick }) => {
+    const IconComponent = icon;
+    return (
     <NavLink
       to={to}
       end={end}
@@ -45,7 +47,7 @@ export default function Navbar() {
     >
       {({ isActive }) => (
         <>
-          <Icon
+          <IconComponent
             className={`${styles4.navLinkIconBase} ${
               isActive ? styles4.navLinkIconActive : styles4.navLinkIconInactive
             }`}
@@ -60,7 +62,8 @@ export default function Navbar() {
         </>
       )}
     </NavLink>
-  );
+    );
+  };
 
   return (
     <nav className={styles4.navbar}>
@@ -78,12 +81,12 @@ export default function Navbar() {
 
           {/* Desktop Links (unchanged look) */}
           <div className={styles4.desktopNav}>
-            <NavItem to="/" Icon={Film} label="ADD MOVIES" end />
-            <NavItem to="/listmovies" Icon={List} label="LIST MOVIES" />
+            <NavItem to="/" icon={Film} label="ADD MOVIES" end />
+            <NavItem to="/listmovies" icon={List} label="LIST MOVIES" />
             {/* Dashboard */}
-            <NavItem to="/dashboard" Icon={Calendar} label="DASHBOARD" />
+            <NavItem to="/dashboard" icon={Calendar} label="DASHBOARD" />
             {/* Bookings (new) */}
-            <NavItem to="/bookings" Icon={Ticket} label="BOOKINGS" />
+            <NavItem to="/bookings" icon={Ticket} label="BOOKINGS" />
           </div>
 
           {/* Mobile / Tablet Hamburger */}

@@ -466,7 +466,7 @@ export const styles5 = {
   detailEmptySubtext: "text-gray-500 text-sm",
   
   // Detail View Content
-  detailContainer: "space-y-6",
+  movieDetailContainer: "space-y-6",
   detailHeaderContainer: "flex justify-between items-start gap-4 mb-2",
   detailTypeIndicator: "flex items-center gap-3 mb-3",
   detailTypeDot: "w-4 h-4 rounded-full bg-gradient-to-r",

@@ -1,5 +1,5 @@
 // src/components/AddMoviePage.jsx
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
   Image as ImageIcon,
@@ -17,6 +17,15 @@ import "react-toastify/dist/ReactToastify.css";
 import { addMoviePageStyles, addMoviePageCustomStyles } from "../../assets/dummyStyles";
 
 const API_HOST = "http://localhost:5000";
+
+function getStoredToken() {
+  return (
+    localStorage.getItem("token") ||
+    localStorage.getItem("authToken") ||
+    localStorage.getItem("accessToken") ||
+    ""
+  );
+}
 
 export default function AddMoviePage() {
   // form state
@@ -50,8 +59,6 @@ export default function AddMoviePage() {
   const [ltDirectorImages, setLtDirectorImages] = useState([]);
   const [ltProducerImages, setLtProducerImages] = useState([]);
   const [ltSingerImages, setLtSingerImages] = useState([]);
-
-  const fileInputRef = useRef();
 
   // duration hours/minutes local state for normal & featured
   const [durationHours, setDurationHours] = useState(Math.floor(duration / 60));
@@ -396,8 +403,12 @@ export default function AddMoviePage() {
     }
 
     try {
+      const token = getStoredToken();
       const resp = await axios.post(`${API_HOST}/api/movies`, form, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: {
+          "Content-Type": "multipart/form-data",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
 
       if (resp?.data?.success) {
@@ -904,7 +915,7 @@ export default function AddMoviePage() {
                   </div>
 
                   <div className="space-y-3">
-                    {slots.map((slot, idx) => (
+                    {slots.map((slot) => (
                       <div
                         key={slot.id}
                         className={addMoviePageStyles.slotItem}

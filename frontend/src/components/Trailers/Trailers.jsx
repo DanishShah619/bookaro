@@ -44,8 +44,8 @@ const getUploadUrl = (input) => {
         }
         // external URL — return as-is
         return val;
-      } catch (e) {
-        // fall through to filename handling
+      } catch {
+      // fall through to filename handling
       }
     }
 
@@ -177,7 +177,7 @@ const Trailers = () => {
   const [trailers, setTrailers] = useState([]);
   const [featuredTrailer, setFeaturedTrailer] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -275,9 +275,7 @@ const Trailers = () => {
         // iframe ref not directly controllable, but preserve reset semantics
         videoRef.current.currentTime = 0;
       }
-    } catch (e) {
-      /* ignore */
-    }
+    } catch { /* Ignore non-critical errors. */ }
 
     // center selected item in carousel
     try {
@@ -293,9 +291,7 @@ const Trailers = () => {
           carouselRef.current.scrollBy({ left: offset, behavior: "smooth" });
         }
       }
-    } catch (e) {
-      // ignore
-    }
+    } catch { /* Ignore non-critical errors. */ }
   };
 
   const togglePlay = () => {
@@ -333,7 +329,7 @@ const Trailers = () => {
 
       // fallback: return original (could already be an embed URL)
       return videoUrl;
-    } catch (e) {
+    } catch {
       // if URL constructor fails, return as-is
       return videoUrl || "";
     }

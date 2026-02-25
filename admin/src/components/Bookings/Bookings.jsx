@@ -59,7 +59,7 @@ export default function Bookings() {
             headers,
             params,
           });
-        } catch (err) {
+        } catch {
           res = await axios.get(`${API_BASE}/api/bookings`, {
             headers,
             params,

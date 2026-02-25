@@ -15,7 +15,7 @@ function getUploadUrl(maybe) {
         const url = new URL(maybe);
         const filename = url.pathname.split('/uploads/').pop();
         return `${API_BASE}/uploads/${filename}`;
-      } catch (e) {
+      } catch {
         return maybe;
       }
     }

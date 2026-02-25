@@ -171,7 +171,7 @@ function getImageUrl(maybe) {
   if (toParse.startsWith("//")) toParse = "http:" + toParse;
 
   // If it looks like "localhost:5000/..." without protocol, prefix http:// so URL can parse
-  if (/^localhost[:\/]/i.test(toParse) || /^127\.0\.0\.1[:\/]/.test(toParse)) {
+  if (/^localhost[:/]/i.test(toParse) || /^127\.0\.0\.1[:/]/.test(toParse)) {
     toParse = "http://" + toParse;
   }
 
@@ -191,7 +191,7 @@ function getImageUrl(maybe) {
       }
       // otherwise return unchanged absolute URL
       return s;
-    } catch (e) {
+    } catch {
       // fallthrough to treat as filename
     }
   }
@@ -203,7 +203,7 @@ function getImageUrl(maybe) {
   if (s.startsWith("uploads/")) return `${apiBase}/${s}`;
 
   // If it starts with "localhost:..." or "127.0.0.1:..." without protocol
-  if (/^localhost[:\/]|^127\.0\.0\.1[:\/]/.test(s)) {
+  if (/^localhost[:/]|^127\.0\.0\.1[:/]/.test(s)) {
     const parts = s.split("/uploads/");
     const filename = parts.length > 1 ? parts.pop() : s.split("/").pop();
     return `${apiBase}/uploads/${filename}`;
@@ -352,7 +352,7 @@ export default function MovieDetailPage() {
         if (!slotsByDate[dateKey]) slotsByDate[dateKey] = [];
         const audi = (raw && raw.audi) || (raw && raw.auditorium) || "Audi 1";
         slotsByDate[dateKey].push({ iso, audi });
-      } catch {}
+      } catch { /* Ignore non-critical errors. */ }
     });
     return Object.keys(slotsByDate)
       .sort()

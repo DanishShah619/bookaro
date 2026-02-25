@@ -108,7 +108,13 @@ export async function login(req, res) {
       success: true,
       message: "Login successful!",
       token,
-      user: { id: user._id.toString(), name: user.name, email: user.email }
+      user: {
+        id: user._id.toString(),
+        name: user.fullName,
+        fullName: user.fullName,
+        username: user.username,
+        email: user.email
+      }
     });
   } catch (err) {
     console.error("Login error:", err);
