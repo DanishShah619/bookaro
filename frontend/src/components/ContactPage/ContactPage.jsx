@@ -41,7 +41,7 @@ const ContactPage = () => {
     const whatsappMessage = `Name: ${encodeURIComponent(formData.name)}%0AEmail: ${encodeURIComponent(formData.email)}%0APhone: ${encodeURIComponent(formData.phone)}%0ASubject: ${encodeURIComponent(formData.subject)}%0AMessage: ${encodeURIComponent(formData.message)}`;
 
     // Open WhatsApp with pre-filled message
-    window.open(`https://wa.me/8299431275?text=${whatsappMessage}`, '_blank');
+    window.open(`https://wa.me/9123707332?text=${whatsappMessage}`, '_blank');
   };
 
   return (
@@ -240,8 +240,8 @@ const ContactPage = () => {
                     </div>
                     <div>
                       <h3 className={contactStyles.contactText}>Email Address</h3>
-                      <p className={contactStyles.contactDetail}>bookings@cineplex.com</p>
-                      <p className={contactStyles.contactDetail}>support@cineplex.com</p>
+                      <p className={contactStyles.contactDetail}>shanildanshah@gmail.com.com</p>
+                      <p className={contactStyles.contactDetail}>shanildanshah@gmail.com.com</p>
                     </div>
                   </div>
                   
@@ -251,7 +251,7 @@ const ContactPage = () => {
                     </div>
                     <div>
                       <h3 className={contactStyles.contactText}>Main Theater Location</h3>
-                      <p className={contactStyles.contactDetail}>123 Cinema Street, Film City, Mumbai, FC 400001</p>
+                      <p className={contactStyles.contactDetail}>7/1 Govind Dhar Lane, Central Avenue ,Kolkata ,700001</p>
                       <p className={contactStyles.contactSubDetail}>+4 other locations across the city</p>
                     </div>
                   </div>
@@ -272,7 +272,7 @@ const ContactPage = () => {
                 </p>
                 <div className="flex items-center">
                   <div className={contactStyles.emergencyHotline}>
-                    HOTLINE: +91 8299431275
+                    HOTLINE: +91 9123707332
                   </div>
                   <span className={contactStyles.emergencyNote}>Available during showtimes</span>
                 </div>
