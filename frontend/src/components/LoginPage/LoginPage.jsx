@@ -13,7 +13,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { loginStyles } from "../../assets/dummyStyles";
 
 // API base (points to /api/auth)
-const API_BASE = "http://localhost:5000/api/auth";
+const API_BASE = "http://localhost:5000/api/users";
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
@@ -46,6 +46,7 @@ const LoginPage = () => {
       const payload = {
         email: formData.email.trim(),
         password: formData.password,
+        requireAdmin: true
       };
       const res = await axios.post(`${API_BASE}/login`, payload, {
         headers: { "Content-Type": "application/json" },

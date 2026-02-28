@@ -102,7 +102,13 @@ export async function login(req, res) {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ success: false, message: "Invalid email or password." });
 
-    const token = mkToken({ id: user._id.toString() });
+     // If this login is from the admin panel, block non-admins immediately
+    if (needsAdmin && !user.isAdmin) {
+      return res.status(403).json({ success: false, message: "Access denied. Admin only." });
+    }
+
+    // Include isAdmin in token so middleware can fast-check without extra DB round-trip
+    const token = mkToken({ id: user._id.toString(), isAdmin: user.isAdmin || false });
 
     return res.status(200).json({
       success: true,
