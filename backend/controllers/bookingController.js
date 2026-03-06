@@ -4,6 +4,16 @@ import Movie from "../models/movieModel.js";
 import SeatLock from "../models/seatLockModel.js";
 import Stripe from "stripe";
 import dotenv from "dotenv";
+import {
+  buildRedisLockKey,
+  acquireRedisLock,
+  releaseRedisLock,
+  releaseAllLocksForOwner,
+  getLockedSeatsForShow,
+  extendLocksForOwner,
+  SEAT_LOCK_TTL_SECONDS,
+  CHECKOUT_LOCK_TTL_SECONDS,
+} from "../config/redis.js";
 dotenv.config();
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
@@ -312,6 +322,25 @@ async function markCheckoutSessionPaid(sessionObj, options = {}) {
   }
   assertBookingOwner(booking, options.user);
   await markSeatLocksPaid(booking._id);
+  // Release Redis locks — seats are now permanently booked in MongoDB
+  try {
+    const bookedSeatIds = (booking.seats || []).map((s) =>
+      typeof s === "string" ? s : (s.seatId || s.id || "")
+    ).filter(Boolean);
+    const ownerId = String(booking.userId || "");
+    if (ownerId && bookedSeatIds.length) {
+      await releaseAllLocksForOwner({
+        movieId: String(booking.movieId || booking.movie?.id || ""),
+        movieName: booking.movieName || booking.movie?.title || "",
+        showtime: booking.showtime,
+        auditorium: booking.auditorium,
+        ownerId,
+        seatIds: bookedSeatIds,
+      });
+    }
+  } catch (e) {
+    console.warn("[Redis] releaseAllLocksForOwner after payment failed (non-fatal):", e.message);
+  }
   return booking;
 }
 
@@ -349,11 +378,83 @@ async function releasePendingCheckoutSession(sessionObj, reason = "failed", opti
     err.statusCode = 404;
     throw err;
   }
-  if (booking) await releaseSeatLocksForBooking(booking._id);
+  if (booking) {
+    await releaseSeatLocksForBooking(booking._id);
+    // Also release Redis locks so seats become immediately available
+    try {
+      const cancelledSeatIds = (booking.seats || []).map((s) =>
+        typeof s === "string" ? s : (s.seatId || s.id || "")
+      ).filter(Boolean);
+      const ownerId = String(booking.userId || "");
+      if (ownerId && cancelledSeatIds.length) {
+        await releaseAllLocksForOwner({
+          movieId: String(booking.movieId || booking.movie?.id || ""),
+          movieName: booking.movieName || booking.movie?.title || "",
+          showtime: booking.showtime,
+          auditorium: booking.auditorium,
+          ownerId,
+          seatIds: cancelledSeatIds,
+        });
+      }
+    } catch (e) {
+      console.warn("[Redis] releaseAllLocksForOwner after cancel failed (non-fatal):", e.message);
+    }
+  }
   return booking;
 }
 
 /* ---------- Controllers ---------- */
+
+export async function lockSeat(req, res) {
+  try {
+    if (!req.user) return res.status(401).json({ success: false, message: "Authentication required" });
+    const { movieId, movieName, showtime: showtimeRaw, auditorium, seatId } = req.body || {};
+    if (!showtimeRaw || !seatId) return res.status(400).json({ success: false, message: "showtime and seatId are required" });
+
+    let showtime;
+    try { showtime = normalizeShowtimeToMinute(showtimeRaw); } catch { return res.status(400).json({ success: false, message: "Invalid showtime" }); }
+    if (showtime < new Date()) return res.status(400).json({ success: false, message: "Showtime has passed" });
+
+    const audi = String(auditorium || "Audi 1").trim();
+    const seat = String(seatId).trim().toUpperCase();
+    const ownerId = String(req.user._id || req.user.id);
+
+    const key = buildRedisLockKey({ movieId, movieName, showtime, auditorium: audi, seatId: seat });
+    const { acquired, degraded } = await acquireRedisLock(key, ownerId, SEAT_LOCK_TTL_SECONDS);
+
+    if (!acquired) {
+      return res.status(409).json({ success: false, message: `Seat ${seat} is currently held by another user. Please choose a different seat.` });
+    }
+
+    return res.json({ success: true, seatId: seat, ttlSeconds: SEAT_LOCK_TTL_SECONDS, degraded: !!degraded });
+  } catch (err) {
+    console.error("lockSeat error:", err);
+    return res.status(500).json({ success: false, message: "Server error", error: String(err.message || err) });
+  }
+}
+
+export async function unlockSeat(req, res) {
+  try {
+    if (!req.user) return res.status(401).json({ success: false, message: "Authentication required" });
+    const { movieId, movieName, showtime: showtimeRaw, auditorium, seatId } = req.body || {};
+    if (!showtimeRaw || !seatId) return res.status(400).json({ success: false, message: "showtime and seatId are required" });
+
+    let showtime;
+    try { showtime = normalizeShowtimeToMinute(showtimeRaw); } catch { return res.status(400).json({ success: false, message: "Invalid showtime" }); }
+
+    const audi = String(auditorium || "Audi 1").trim();
+    const seat = String(seatId).trim().toUpperCase();
+    const ownerId = String(req.user._id || req.user.id);
+
+    const key = buildRedisLockKey({ movieId, movieName, showtime, auditorium: audi, seatId: seat });
+    await releaseRedisLock(key, ownerId);
+
+    return res.json({ success: true, seatId: seat });
+  } catch (err) {
+    console.error("unlockSeat error:", err);
+    return res.status(500).json({ success: false, message: "Server error", error: String(err.message || err) });
+  }
+}
 
 export async function createBooking(req, res) {
   try {
@@ -478,6 +579,26 @@ export async function createBooking(req, res) {
       holdExpiresAt,
       meta: { rawRequest: { seatIds: seatIdList, clientSeats: rawSeats } }
     };
+
+    // Validate that this user holds the Redis pre-eminent lock for every seat.
+    // If Redis is unavailable (degraded), skip validation and fall through to MongoDB OCC.
+    const ownerId = String(req.user._id || req.user.id);
+    const seatIdListForLock = Array.from(new Set(normalizedSeats.map((s) => s.seatId)));
+    const unseatedByOther = [];
+    for (const sid of seatIdListForLock) {
+      const key = buildRedisLockKey({ movieId, movieName, showtime, auditorium, seatId: sid });
+      const { acquired, degraded } = await acquireRedisLock(key, ownerId, CHECKOUT_LOCK_TTL_SECONDS);
+      if (!acquired && !degraded) unseatedByOther.push(sid);
+    }
+    if (unseatedByOther.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Some seats were taken by another user before checkout",
+        seats: unseatedByOther,
+      });
+    }
+    // Extend TTL of all locks to cover the Stripe checkout window
+    await extendLocksForOwner({ movieId, movieName, showtime, auditorium, ownerId, seatIds: seatIdListForLock, ttlSeconds: CHECKOUT_LOCK_TTL_SECONDS });
 
     try {
       await acquireSeatLocks({
@@ -698,6 +819,14 @@ export async function getOccupiedSeats(req, res) {
       if (lock?.seatId) occupiedSet.add(String(lock.seatId).trim().toUpperCase());
     }
 
+    // Merge Redis pre-eminent locks (seats selected but not yet at checkout)
+    try {
+      const redisLocked = await getLockedSeatsForShow({ movieId, movieName, showtime: parsed, auditorium });
+      for (const s of redisLocked) if (s) occupiedSet.add(s);
+    } catch (e) {
+      console.warn("[Redis] getLockedSeatsForShow in getOccupiedSeats failed (non-fatal):", e.message);
+    }
+
     return res.json({ success: true, occupied: [...occupiedSet] });
   } catch (err) {
     console.error("getOccupiedSeats error:", err && err.stack ? err.stack : err);
@@ -811,6 +940,8 @@ export async function stripeWebhook(req, res) {
 }
 
 export default {
+  lockSeat,
+  unlockSeat,
   createBooking,
   getBooking,
   listBookings,

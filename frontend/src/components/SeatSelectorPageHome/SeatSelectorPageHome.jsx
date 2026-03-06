@@ -102,6 +102,7 @@ export default function SeatSelectorPage() {
     Boolean(getAuthToken())
   );
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [lockingSeats, setLockingSeats] = useState(new Set()); // seats currently being locked/unlocked
 
   useEffect(() => {
     setIsAuthenticated(Boolean(getAuthToken()));
@@ -397,19 +398,84 @@ export default function SeatSelectorPage() {
     }
   }, [loading, movie, navigate]);
 
-  const toggleSeat = (id) => {
-    const nid = normalizeSeatId(id);
-    if (booked.has(nid)) {
-      toast.error(`Seat ${nid} already booked`);
-      return;
+  const showtime = slotObj?._iso || slotKey;
+  const movieIdForLock = movie?._id || movie?.id || movieIdParam;
+  const movieNameForLock = movie?.title || movie?.movieName || "";
+
+  // Helper: call lock/unlock API for a single seat
+  const callLockApi = async (endpoint, seatId) => {
+    const token = getAuthToken();
+    if (!token) return; // no token = degraded, let checkout handle auth
+    try {
+      await axios.post(
+        `${API_BASE}/api/bookings/${endpoint}`,
+        { movieId: movieIdForLock, movieName: movieNameForLock, showtime, auditorium: audiName, seatId },
+        { headers: { Authorization: `Bearer ${token}` }, timeout: 5000 }
+      );
+    } catch (err) {
+      // 409 = seat taken by someone else
+      if (err?.response?.status === 409) throw err;
+      // Any other error (network, Redis down) — log and continue gracefully
+      console.warn(`[seat-lock] ${endpoint} failed for ${seatId} (non-fatal):`, err?.message);
     }
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(nid) ? next.delete(nid) : next.add(nid);
-      return next;
-    });
   };
-  const clearSelection = () => setSelected(new Set());
+
+  // Unlock all selected seats on unmount / page leave
+  useEffect(() => {
+    const releaseAll = async () => {
+      const token = getAuthToken();
+      if (!token) return;
+      const seats = [...selected];
+      if (!seats.length || !showtime) return;
+      await Promise.allSettled(
+        seats.map((sid) => callLockApi("unlock-seat", sid))
+      );
+    };
+    const handleUnload = () => { releaseAll(); };
+    window.addEventListener("beforeunload", handleUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleUnload);
+      releaseAll();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, showtime, audiName]);
+
+  const toggleSeat = async (id) => {
+    const nid = normalizeSeatId(id);
+    if (booked.has(nid)) { toast.error(`Seat ${nid} is already booked.`); return; }
+    if (lockingSeats.has(nid)) return; // already being processed
+
+    const isSelecting = !selected.has(nid);
+
+    // Optimistically update UI
+    setSelected((prev) => { const next = new Set(prev); isSelecting ? next.add(nid) : next.delete(nid); return next; });
+    setLockingSeats((prev) => new Set(prev).add(nid));
+
+    try {
+      if (isSelecting) {
+        await callLockApi("lock-seat", nid);
+      } else {
+        await callLockApi("unlock-seat", nid);
+      }
+    } catch (err) {
+      if (err?.response?.status === 409) {
+        // Seat was taken — revert selection and mark as booked
+        setSelected((prev) => { const next = new Set(prev); next.delete(nid); return next; });
+        setBooked((prev) => new Set(prev).add(nid));
+        toast.error(`Seat ${nid} was just taken by another user.`);
+      }
+      // Other errors: keep optimistic selection (Redis degraded, backend will recheck at checkout)
+    } finally {
+      setLockingSeats((prev) => { const next = new Set(prev); next.delete(nid); return next; });
+    }
+  };
+
+  const clearSelection = async () => {
+    const seats = [...selected];
+    setSelected(new Set());
+    // Release all Redis locks for deselected seats
+    await Promise.allSettled(seats.map((sid) => callLockApi("unlock-seat", sid)));
+  };
 
   // pricing - use paise to avoid floating rounding issues
   const basePriceRupee =

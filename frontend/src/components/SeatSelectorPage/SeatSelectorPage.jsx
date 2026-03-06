@@ -100,6 +100,7 @@ export default function SeatSelectorPage() {
   const [selected, setSelected] = useState(new Set());
   const [bookingLoading, setBookingLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(Boolean(getStoredToken()));
+  const [lockingSeats, setLockingSeats] = useState(new Set());
 
   useEffect(() => {
     const onStorage = () => setIsLoggedIn(Boolean(getStoredToken()));
@@ -395,20 +396,84 @@ export default function SeatSelectorPage() {
     }
   }, [loading, movie, navigate]);
 
-  const toggleSeat = (idRaw) => {
+  const toggleSeat = async (idRaw) => {
     const id = normalizeSeatId(idRaw);
     if (!id) return;
-    if (booked.has(id)) {
-      toast.error(`Seat ${id} already booked`);
-      return;
+    if (booked.has(id)) { toast.error(`Seat ${id} is already booked.`); return; }
+    if (lockingSeats.has(id)) return;
+
+    const isSelecting = !selected.has(id);
+    const showtimeISO = slotObj?._iso || slotKey;
+    const movieIdForLock = movie?._id || movie?.id || movieIdParam;
+    const movieNameForLock = movie?.title || movie?.movieName || "";
+
+    setSelected((prev) => { const next = new Set(prev); isSelecting ? next.add(id) : next.delete(id); return next; });
+    setLockingSeats((prev) => new Set(prev).add(id));
+
+    try {
+      const token = getStoredToken();
+      if (token) {
+        const endpoint = isSelecting ? "lock-seat" : "unlock-seat";
+        await axios.post(
+          `${API_BASE}/api/bookings/${endpoint}`,
+          { movieId: movieIdForLock, movieName: movieNameForLock, showtime: showtimeISO, auditorium: audiName, seatId: id },
+          { headers: { Authorization: `Bearer ${token}` }, timeout: 5000 }
+        );
+      }
+    } catch (err) {
+      if (err?.response?.status === 409) {
+        setSelected((prev) => { const next = new Set(prev); next.delete(id); return next; });
+        setBooked((prev) => new Set(prev).add(id));
+        toast.error(`Seat ${id} was just taken by another user.`);
+      } else {
+        console.warn(`[seat-lock] failed for ${id} (non-fatal):`, err?.message);
+      }
+    } finally {
+      setLockingSeats((prev) => { const next = new Set(prev); next.delete(id); return next; });
     }
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
   };
-  const clearSelection = () => setSelected(new Set());
+
+  // Release all Redis locks on unmount or page close
+  useEffect(() => {
+    const showtimeISO = slotObj?._iso || slotKey;
+    const movieIdForLock = movie?._id || movie?.id || movieIdParam;
+    const movieNameForLock = movie?.title || movie?.movieName || "";
+    const releaseAll = () => {
+      const token = getStoredToken();
+      if (!token || !showtimeISO) return;
+      [...selected].forEach((sid) => {
+        navigator.sendBeacon(
+          `${API_BASE}/api/bookings/unlock-seat`,
+          new Blob([JSON.stringify({ movieId: movieIdForLock, movieName: movieNameForLock, showtime: showtimeISO, auditorium: audiName, seatId: sid })], { type: "application/json" })
+        );
+      });
+    };
+    window.addEventListener("beforeunload", releaseAll);
+    return () => {
+      window.removeEventListener("beforeunload", releaseAll);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, slotKey, slotObj, audiName]);
+
+  const clearSelection = async () => {
+    const seats = [...selected];
+    setSelected(new Set());
+    const token = getStoredToken();
+    if (!token) return;
+    const showtimeISO = slotObj?._iso || slotKey;
+    const movieIdForLock = movie?._id || movie?.id || movieIdParam;
+    const movieNameForLock = movie?.title || movie?.movieName || "";
+    await Promise.allSettled(
+      seats.map((sid) =>
+        axios.post(
+          `${API_BASE}/api/bookings/unlock-seat`,
+          { movieId: movieIdForLock, movieName: movieNameForLock, showtime: showtimeISO, auditorium: audiName, seatId: sid },
+          { headers: { Authorization: `Bearer ${token}` }, timeout: 5000 }
+        ).catch(() => {})
+      )
+    );
+  };
+
   const basePrice = movie?.seatPrices?.standard ?? movie?.price ?? 0;
 
   const confirmBooking = async () => {

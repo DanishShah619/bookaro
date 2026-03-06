@@ -4,25 +4,30 @@ import {
   createBooking,
   getBooking,
   listBookings,
-
   confirmPayment,
   cancelCheckoutSession,
   deleteBooking,
   getOccupiedSeats,
+  lockSeat,
+  unlockSeat,
 } from "../controllers/bookingController.js";
 import authMiddleware from "../middlewares/auth.js";
 import requireAdmin from "../middlewares/requireAdmin.js";
 
 const bookingRouter = express.Router();
 
+// Pre-eminent seat locking (Redis) — must be authenticated
+bookingRouter.post("/lock-seat", authMiddleware, lockSeat);
+bookingRouter.post("/unlock-seat", authMiddleware, unlockSeat);
+
 bookingRouter.post("/", authMiddleware, createBooking);
 bookingRouter.get("/confirm-payment", authMiddleware, confirmPayment);
 bookingRouter.post("/cancel-checkout", authMiddleware, cancelCheckoutSession);
 bookingRouter.get("/", listBookings);
-bookingRouter.get("/occupied",requireAdmin,getOccupiedSeats);
+bookingRouter.get("/occupied", getOccupiedSeats);
 
-// Specific static routes must come BEFORE dynamic routes like "/:id"
-bookingRouter.get("/my",authMiddleware,requireAdmin, getBooking);
-bookingRouter.delete("/:id", authMiddleware,requireAdmin, deleteBooking);
+// Static named routes BEFORE dynamic /:id
+bookingRouter.get("/my", authMiddleware, requireAdmin, getBooking);
+bookingRouter.delete("/:id", authMiddleware, requireAdmin, deleteBooking);
 
 export default bookingRouter;
