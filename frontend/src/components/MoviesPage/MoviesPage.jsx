@@ -60,6 +60,11 @@ const mapBackendMovie = (m) => {
   return { id, title, image, category, raw: m };
 };
 
+const isBookableMovie = (movie) => {
+  const type = String(movie?.type || "normal").trim();
+  return type === "normal" || type === "featured";
+};
+
 export default function MoviesPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [showAll, setShowAll] = useState(false);
@@ -85,7 +90,7 @@ export default function MoviesPage() {
         const items = Array.isArray(json.items) ? json.items : [];
 
         // map backend shape to frontend shape
-        const mapped = items.map(mapBackendMovie);
+        const mapped = items.filter(isBookableMovie).map(mapBackendMovie);
         if (mounted) {
           setMovies(mapped);
           setLoading(false);
@@ -99,7 +104,7 @@ export default function MoviesPage() {
           if (!res2.ok) throw new Error(`Fallback HTTP ${res2.status}`);
           const json2 = await res2.json();
           const items2 = Array.isArray(json2.items) ? json2.items : [];
-          const mapped2 = items2.map(mapBackendMovie);
+          const mapped2 = items2.filter(isBookableMovie).map(mapBackendMovie);
           if (mounted) {
             setMovies(mapped2);
             setLoading(false);
