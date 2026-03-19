@@ -81,6 +81,25 @@ const enrichLatestTrailerForOutput = (lt = {}) => {
   return copy;
 };
 
+/**
+ * Parse a slot {date, time, ampm} into a JS Date.
+ * Returns null if data is missing or unparseable.
+ */
+function slotToDate(slot) {
+  if (!slot || !slot.date || !slot.time) return null;
+  try {
+    const [h, m] = slot.time.split(":").map(Number);
+    if (isNaN(h) || isNaN(m)) return null;
+    let hour = h;
+    if (slot.ampm === "PM" && h !== 12) hour += 12;
+    if (slot.ampm === "AM" && h === 12) hour = 0;
+    const padded = `${String(hour).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
+    return new Date(`${slot.date}T${padded}`);
+  } catch {
+    return null;
+  }
+}
+
 const normalizeItemForOutput = (it = {}) => {
   const obj = { ...it };
   obj.thumbnail = it.latestTrailer?.thumbnail ? getUploadUrl(it.latestTrailer.thumbnail) : (it.poster ? getUploadUrl(it.poster) : null);
@@ -101,8 +120,18 @@ const normalizeItemForOutput = (it = {}) => {
 
   if (it.latestTrailer) obj.latestTrailer = enrichLatestTrailerForOutput(it.latestTrailer);
 
-  // NEW: include auditorium in normalized output (keep null if not present)
+  // include auditorium in normalized output (keep null if not present)
   obj.auditorium = it.auditorium || null;
+
+  // ── Strip any slots whose date+time is already in the past ──
+  if (Array.isArray(obj.slots)) {
+    const now = new Date();
+    obj.slots = obj.slots.filter((slot) => {
+      const d = slotToDate(slot);
+      if (!d) return true; // keep if unparseable — don't silently drop
+      return d > now;
+    });
+  }
 
   return obj;
 };
@@ -170,7 +199,7 @@ export async function createMovie(req, res) {
     latestTrailerBody.producers = buildLatestTrailerPeople(latestTrailerBody.producers);
     latestTrailerBody.singers = buildLatestTrailerPeople(latestTrailerBody.singers);
 
-    // NEW: read auditorium (frontend sends final auditorium string)
+    // read auditorium (frontend sends final auditorium string)
     const auditoriumValue = (typeof body.auditorium === "string" && body.auditorium.trim()) ? String(body.auditorium).trim() : "Audi 1";
 
     const doc = new Movie({
@@ -190,7 +219,7 @@ export async function createMovie(req, res) {
       producers,
       story: body.story || "",
       latestTrailer: latestTrailerBody,
-      auditorium: auditoriumValue, // store auditorium
+      auditorium: auditoriumValue,
     });
 
     const saved = await doc.save();
@@ -226,8 +255,21 @@ export async function getMovies(req, res) {
     const total = await Movie.countDocuments(filter);
     const items = await Movie.find(filter).sort(sort).skip(skip).limit(lim).lean();
 
-    const normalized = (items || []).map(normalizeItemForOutput);
-    return res.json({ success: true, total, page: pg, limit: lim, items: normalized });
+    // Normalize (strips past slots inside each movie) then remove movies
+    // of bookable types that have no remaining future slots.
+    const normalized = (items || [])
+      .map(normalizeItemForOutput)
+      .filter((movie) => {
+        // latestTrailers and releaseSoon don't carry bookable slots — always keep them
+        const bookableTypes = ["normal", "featured"];
+        if (!bookableTypes.includes(movie.type)) return true;
+        // If no slots were ever defined, keep the movie (admin may not have added slots yet)
+        if (!Array.isArray(movie.slots) || movie.slots.length === 0) return true;
+        // normalizeItemForOutput already stripped past slots — if none remain, hide the movie
+        return movie.slots.length > 0;
+      });
+
+    return res.json({ success: true, total: normalized.length, page: pg, limit: lim, items: normalized });
   } catch (err) {
     console.error("getMovies error:", err);
     return res.status(500).json({ success: false, message: "Server error" });

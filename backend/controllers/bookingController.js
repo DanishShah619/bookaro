@@ -378,6 +378,11 @@ export async function createBooking(req, res) {
     let showtime;
     try { showtime = normalizeShowtimeToMinute(body.showtime); } catch { return res.status(400).json({ success: false, message: "Invalid showtime" }); }
 
+    // ── Reject bookings for showtimes that have already passed ──
+    if (showtime < new Date()) {
+      return res.status(400).json({ success: false, message: "This showtime has already passed and can no longer be booked." });
+    }
+
     // best-effort movie load
     let movie = null;
     if (movieId && mongoose.Types.ObjectId.isValid(String(movieId))) {
