@@ -13,6 +13,39 @@ const API_BASE = "http://localhost:5000";
 
 const News = () => {
   const [newsItems, setNewsItems] = useState(fallbackNews);
+  const [subEmail, setSubEmail] = useState("");
+  const [subStatus, setSubStatus] = useState(null); // null | 'loading' | 'success' | 'already' | 'error'
+  const [subMsg, setSubMsg] = useState("");
+
+  const handleSubscribe = async (e) => {
+    e.preventDefault();
+    const email = subEmail.trim();
+    if (!email) return;
+    setSubStatus("loading");
+    setSubMsg("");
+    try {
+      const res = await fetch("http://localhost:5000/api/subscribers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (res.status === 201) {
+        setSubStatus("success");
+        setSubMsg(data.message);
+        setSubEmail("");
+      } else if (res.status === 409) {
+        setSubStatus("already");
+        setSubMsg(data.message);
+      } else {
+        setSubStatus("error");
+        setSubMsg(data.message || "Something went wrong.");
+      }
+    } catch {
+      setSubStatus("error");
+      setSubMsg("Could not connect. Please try again.");
+    }
+  };
 
   useEffect(() => {
     const ac = new AbortController();
@@ -234,7 +267,6 @@ const News = () => {
               </div>
             ))}
 
-            {/* CTA / Subscribe card */}
             <div className={newsStyles.subscribeCard}>
               <h5
                 className={newsStyles.subscribeTitle}
@@ -246,15 +278,41 @@ const News = () => {
                 Get curated cinematic news, exclusive behind-the-scenes, and
                 early access to trailers.
               </p>
-              <div className={newsStyles.subscribeForm}>
+              <form onSubmit={handleSubscribe} className={newsStyles.subscribeForm} noValidate>
                 <input
+                  type="email"
+                  id="news-subscribe-email"
+                  value={subEmail}
+                  onChange={(e) => { setSubEmail(e.target.value); setSubStatus(null); }}
                   className={newsStyles.subscribeInput}
                   placeholder="Email address"
+                  required
+                  disabled={subStatus === "loading" || subStatus === "success"}
                 />
-                <button className={newsStyles.subscribeButton}>
-                  Subscribe
+                <button
+                  type="submit"
+                  id="news-subscribe-btn"
+                  disabled={subStatus === "loading" || subStatus === "success"}
+                  className={newsStyles.subscribeButton}
+                >
+                  {subStatus === "loading" ? (
+                    <span className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin inline-block" />
+                  ) : subStatus === "success" ? (
+                    "✓ Done"
+                  ) : (
+                    "Subscribe"
+                  )}
                 </button>
-              </div>
+              </form>
+              {subMsg && (
+                <p className={`mt-2 text-xs ${
+                  subStatus === "success" ? "text-green-600" :
+                  subStatus === "already" ? "text-amber-600" :
+                  "text-red-600"
+                }`}>
+                  {subMsg}
+                </p>
+              )}
             </div>
           </aside>
         </section>

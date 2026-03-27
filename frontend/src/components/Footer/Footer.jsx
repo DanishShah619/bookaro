@@ -20,6 +20,39 @@ import { footerStyles } from '../../assets/dummyStyles';
 
 const Footer = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const [subEmail, setSubEmail] = useState("");
+  const [subStatus, setSubStatus] = useState(null); // null | 'loading' | 'success' | 'already' | 'error'
+  const [subMsg, setSubMsg] = useState("");
+
+  const handleSubscribe = async (e) => {
+    e.preventDefault();
+    const email = subEmail.trim();
+    if (!email) return;
+    setSubStatus("loading");
+    setSubMsg("");
+    try {
+      const res = await fetch("http://localhost:5000/api/subscribers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (res.status === 201) {
+        setSubStatus("success");
+        setSubMsg(data.message);
+        setSubEmail("");
+      } else if (res.status === 409) {
+        setSubStatus("already");
+        setSubMsg(data.message);
+      } else {
+        setSubStatus("error");
+        setSubMsg(data.message || "Something went wrong.");
+      }
+    } catch {
+      setSubStatus("error");
+      setSubMsg("Could not connect. Please try again.");
+    }
+  };
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -210,6 +243,65 @@ const Footer = () => {
               </li>
             </ul>
           </div>
+        </div>
+
+        {/* ── Join CineNews newsletter ── */}
+        <div className="mt-10 rounded-2xl border border-red-800/40 bg-white/5 backdrop-blur-sm p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Mail className="h-5 w-5 text-red-400" />
+              Join <span className="text-red-400">CineNews</span>
+            </h3>
+            <p className="mt-1 text-sm text-gray-400">
+              Get the latest movie drops, exclusive offers, and showtime alerts straight to your inbox.
+            </p>
+          </div>
+
+          <form
+            onSubmit={handleSubscribe}
+            className="flex w-full sm:w-auto gap-2"
+            noValidate
+          >
+            <input
+              type="email"
+              id="footer-subscribe-email"
+              value={subEmail}
+              onChange={(e) => { setSubEmail(e.target.value); setSubStatus(null); }}
+              placeholder="your@email.com"
+              required
+              disabled={subStatus === "loading" || subStatus === "success"}
+              className="flex-1 sm:w-56 h-10 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/60 disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              id="footer-subscribe-btn"
+              disabled={subStatus === "loading" || subStatus === "success"}
+              className="h-10 px-4 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap"
+            >
+              {subStatus === "loading" ? (
+                <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              ) : subStatus === "success" ? (
+                "✓ Subscribed"
+              ) : (
+                "Subscribe"
+              )}
+            </button>
+          </form>
+
+          {/* Feedback message */}
+          {subMsg && (
+            <p
+              className={`text-xs mt-1 sm:mt-0 sm:ml-2 ${
+                subStatus === "success"
+                  ? "text-green-400"
+                  : subStatus === "already"
+                  ? "text-amber-400"
+                  : "text-red-400"
+              }`}
+            >
+              {subMsg}
+            </p>
+          )}
         </div>
 
         {/* Divider */}

@@ -9,6 +9,7 @@ import movieRouter from './routes/movieRouter.js';
 import userRouter from './routes/userRouter.js';
 import bookingRouter from './routes/bookingRouter.js';
 import newsRouter from './routes/newsRouter.js';
+import subscriberRouter from './routes/subscriberRouter.js';
 import { stripeWebhook } from './controllers/bookingController.js';
 import { globalLimiter, authLimiter } from './middlewares/rateLimiter.js';
 
@@ -32,6 +33,7 @@ app.use("/api/auth", userRouter)
 app.use("/api/movies", movieRouter);
 app.use("/api/bookings", bookingRouter);
 app.use("/api/news", newsRouter);
+app.use("/api/subscribers", subscriberRouter);
 
 app.get('/', (req, res) => {
     res.send('API Working');
