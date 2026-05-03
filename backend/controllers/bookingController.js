@@ -5,8 +5,8 @@ import Stripe from "stripe";
 import dotenv from "dotenv";
 dotenv.config();
 
-const CLIENT_URL = "http://localhost:5173";
-const STRIPE_SECRET_KEY = ""; //PASTE YOUR STRIPE SECRET KEY HERE 
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
 const STRIPE_API_VERSION = "2022-11-15";
 const RECLINER_ROWS = new Set(["D", "E"]);
 const BLOCKING_STATUSES = ["pending", "paid", "confirmed", "active", "upcoming"];

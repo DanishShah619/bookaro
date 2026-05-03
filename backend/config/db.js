@@ -1,7 +1,8 @@
 import mongoose from "mongoose";
 
 export const connectDB = async ()=> {
-  await mongoose.connect("")
+  const databaseUrl = process.env.DATABASE_URL || "mongodb://mongo:27017/moviebooking";
+  await mongoose.connect(databaseUrl)
   .then(() => {console.log("DB connected")})
 }
 
@@ -53,10 +54,3 @@ export const connectDB = async ()=> {
 // Step 12 — Harden for production
 // Use TLS, restrict network access to known IPs/VPCs, rotate credentials regularly, and use a secrets manager in production.
 
-// Step 13 — Monitor & alert
-// Enable monitoring/alerts (latency, connection errors, auth failures) so you get notified of issues early.
-
-// Step 14 — Document the setup
-// Write a short README that lists the env variable name, where to find the URI, and any network rules so teammates can reproduce the setup.
-
-// If you have any questions or need help, call us at 8299431275 or email hexagonsservices@gmail.com
