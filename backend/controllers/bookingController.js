@@ -7,13 +7,24 @@ dotenv.config();
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
-const STRIPE_API_VERSION = "2022-11-15";
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
+const STRIPE_API_VERSION = "2025-01-27.acacia";
+const CHECKOUT_SESSION_EXPIRES_AFTER_SECONDS = 31 * 60;
 const RECLINER_ROWS = new Set(["D", "E"]);
 const BLOCKING_STATUSES = ["pending", "paid", "confirmed", "active", "upcoming"];
 
 function getStripeOrThrow() {
   if (!STRIPE_SECRET_KEY) throw new Error("Missing STRIPE_SECRET_KEY in env");
   return new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION });
+}
+
+function getClientUrlOrThrow() {
+  const clientUrl = String(CLIENT_URL || "").replace(/\/+$/, "");
+  if (!clientUrl) throw new Error("Missing CLIENT_URL in env");
+  if (/^sk_live_/i.test(STRIPE_SECRET_KEY) && /localhost|127\.0\.0\.1/i.test(clientUrl)) {
+    throw new Error("CLIENT_URL must be a public URL when using live Stripe keys");
+  }
+  return clientUrl;
 }
 
 function normalizeShowtimeToMinute(input) {
@@ -85,13 +96,19 @@ function computeTotalPaiseFromSeats(movie = {}, seats = [], options = {}) {
   return Math.max(0, Math.round(total));
 }
 
+function getServerSeatPrice(movie = {}, row = "") {
+  const standard = Number(movie?.seatPrices?.standard ?? movie?.price ?? 0) || 0;
+  const reclinerDefined =
+    typeof movie?.seatPrices?.recliner !== "undefined" &&
+    movie?.seatPrices?.recliner !== null;
+  const recliner = reclinerDefined ? Number(movie.seatPrices.recliner) || 0 : Math.round(standard * 1.5);
+  return RECLINER_ROWS.has(String(row).toUpperCase()) ? recliner : standard;
+}
+
 function normalizeSeatsFromInput(rawSeats = [], seatIdsFromBody = [], movie = {}) {
   const normalized = [];
   const deriveServerPrice = (row) => {
-    const isRecliner = RECLINER_ROWS.has(row);
-    const base = Number(movie?.seatPrices?.standard ?? movie?.price ?? 0);
-    if (isRecliner) return Number(movie?.seatPrices?.recliner ?? Math.round(base * 1.5));
-    return base;
+    return getServerSeatPrice(movie, row);
   };
 
   if (Array.isArray(rawSeats) && rawSeats.length > 0) {
@@ -101,12 +118,7 @@ function normalizeSeatsFromInput(rawSeats = [], seatIdsFromBody = [], movie = {}
         if (!seatIdVal) continue;
         const row = seatIdVal.charAt(0).toUpperCase();
         const type = s.type || (RECLINER_ROWS.has(row) ? "recliner" : "standard");
-        let price = 0;
-        if (s.price !== undefined && s.price !== null) {
-          const p = Number(s.price);
-          if (!Number.isNaN(p) && p >= 0) price = p;
-        } else price = deriveServerPrice(row);
-        normalized.push({ seatId: seatIdVal, type, price });
+        normalized.push({ seatId: seatIdVal, type, price: deriveServerPrice(row) });
       }
     } else {
       for (const sid of rawSeats) {
@@ -127,6 +139,65 @@ function normalizeSeatsFromInput(rawSeats = [], seatIdsFromBody = [], movie = {}
     }
   }
   return normalized;
+}
+
+async function markCheckoutSessionPaid(sessionObj) {
+  const bookingId = sessionObj?.metadata?.bookingId;
+  if (!bookingId || !mongoose.Types.ObjectId.isValid(bookingId)) {
+    throw new Error("Invalid bookingId in session metadata");
+  }
+
+  if (sessionObj.payment_status !== "paid") {
+    throw new Error(`Payment not completed (status=${sessionObj.payment_status})`);
+  }
+
+  const booking = await Booking.findOneAndUpdate(
+    {
+      _id: bookingId,
+      $or: [{ paymentSessionId: sessionObj.id }, { paymentSessionId: "" }],
+    },
+    {
+      paymentStatus: "paid",
+      status: "confirmed",
+      paymentSessionId: sessionObj.id,
+      paymentIntentId: sessionObj.payment_intent || "",
+      stripeSession: {
+        id: sessionObj.id,
+        url: sessionObj.url || null,
+        paymentStatus: sessionObj.payment_status,
+      },
+    },
+    { new: true }
+  ).exec();
+
+  if (!booking) throw new Error("Booking not found for this Stripe session");
+  return booking;
+}
+
+async function releasePendingCheckoutSession(sessionObj, reason = "failed") {
+  const bookingId = sessionObj?.metadata?.bookingId;
+  if (!bookingId || !mongoose.Types.ObjectId.isValid(bookingId)) return null;
+
+  return Booking.findOneAndUpdate(
+    {
+      _id: bookingId,
+      paymentStatus: "pending",
+      status: "pending",
+      $or: [{ paymentSessionId: sessionObj.id }, { paymentSessionId: "" }],
+    },
+    {
+      paymentStatus: "failed",
+      status: "cancelled",
+      paymentSessionId: sessionObj.id,
+      stripeSession: {
+        id: sessionObj.id,
+        url: sessionObj.url || null,
+        paymentStatus: sessionObj.payment_status || reason,
+        releaseReason: reason,
+      },
+    },
+    { new: true }
+  ).exec();
 }
 
 /* ---------- Controllers ---------- */
@@ -164,7 +235,7 @@ export async function createBooking(req, res) {
     const normalizedSeats = normalizeSeatsFromInput(rawSeats, seatIdsFromBody, movie);
     if (normalizedSeats.length === 0) return res.status(400).json({ success: false, message: "No valid seats provided" });
 
-    const totalPaise = computeTotalPaiseFromSeats(movie, normalizedSeats, { allowClientPrice: true });
+    const totalPaise = computeTotalPaiseFromSeats(movie, normalizedSeats, { allowClientPrice: false });
     if (!totalPaise || totalPaise <= 0) return res.status(400).json({ success: false, message: "Computed amount is zero" });
     const totalMain = Number((totalPaise / 100).toFixed(2));
 
@@ -193,6 +264,13 @@ export async function createBooking(req, res) {
 
     const seatIdList = Array.from(new Set(normalizedSeats.map(s => s.seatId)));
     const conflictingSeats = seatIdList.filter(s => occupiedSeats.has(s));
+    if (conflictingSeats.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Some seats are no longer available",
+        seats: conflictingSeats
+      });
+    }
 
     // movie snapshot + top-level searchable fields
     const movieSnapshot = movie
@@ -241,10 +319,12 @@ export async function createBooking(req, res) {
       }
 
       try {
+        const clientUrl = getClientUrlOrThrow();
         const amountPaiseForStripe = Number(doc.amountPaise);
         const session = await stripe.checkout.sessions.create({
           payment_method_types: ["card"],
           mode: "payment",
+          expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_SESSION_EXPIRES_AFTER_SECONDS,
           line_items: [{
             price_data: {
               currency,
@@ -253,8 +333,8 @@ export async function createBooking(req, res) {
             },
             quantity: 1
           }],
-          success_url: `${CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${CLIENT_URL}/cancel?session_id={CHECKOUT_SESSION_ID}`,
+          success_url: `${clientUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${clientUrl}/cancel?session_id={CHECKOUT_SESSION_ID}`,
           metadata: { bookingId: String(booking._id), seats: JSON.stringify(seatIdList), auditorium, showtime: showtime.toISOString() }
         });
 
@@ -395,6 +475,36 @@ export async function getOccupiedSeats(req, res) {
   }
 }
 
+export async function cancelCheckoutSession(req, res) {
+  try {
+    const sessionId = String(req.body?.session_id || req.query?.session_id || "").trim();
+    if (!sessionId) return res.status(400).json({ success: false, message: "session_id required" });
+
+    let stripe;
+    try { stripe = getStripeOrThrow(); } catch (err) {
+      return res.status(500).json({ success: false, message: "Payments not configured", error: err.message });
+    }
+
+    let sessionObj = await stripe.checkout.sessions.retrieve(sessionId);
+    if (!sessionObj) return res.status(404).json({ success: false, message: "Session not found" });
+
+    if (sessionObj.payment_status === "paid") {
+      const booking = await markCheckoutSessionPaid(sessionObj);
+      return res.json({ success: true, message: "Payment already completed", booking });
+    }
+
+    if (sessionObj.status === "open") {
+      sessionObj = await stripe.checkout.sessions.expire(sessionId);
+    }
+
+    const booking = await releasePendingCheckoutSession(sessionObj, "cancelled");
+    return res.json({ success: true, booking });
+  } catch (err) {
+    console.error("cancelCheckoutSession error:", err && err.stack ? err.stack : err);
+    return res.status(500).json({ success: false, message: "Server error", error: String(err.message || err) });
+  }
+}
+
 export async function confirmPayment(req, res) {
   try {
     const { session_id } = req.query;
@@ -411,23 +521,56 @@ export async function confirmPayment(req, res) {
       return res.status(400).json({ success: false, message: `Payment not completed (status=${sessionObj.payment_status})` });
     }
 
-    const bookingId = sessionObj.metadata?.bookingId;
-    if (!bookingId || !mongoose.Types.ObjectId.isValid(bookingId)) {
-      return res.status(400).json({ success: false, message: "Invalid bookingId in session metadata" });
-    }
-
-    const booking = await Booking.findByIdAndUpdate(bookingId, {
-      paymentStatus: "paid",
-      status: "confirmed",
-      paymentIntentId: sessionObj.payment_intent || ""
-    }, { new: true }).exec();
-
-    if (!booking) return res.status(404).json({ success: false, message: "Booking not found for this session" });
+    const booking = await markCheckoutSessionPaid(sessionObj);
 
     return res.json({ success: true, booking });
   } catch (err) {
     console.error("confirmPayment error:", err && err.stack ? err.stack : err);
     return res.status(500).json({ success: false, message: "Server error", error: String(err.message || err) });
+  }
+}
+
+export async function stripeWebhook(req, res) {
+  let stripe;
+  try { stripe = getStripeOrThrow(); } catch (err) {
+    return res.status(500).json({ success: false, message: "Payments not configured", error: err.message });
+  }
+
+  if (!STRIPE_WEBHOOK_SECRET) {
+    return res.status(500).json({ success: false, message: "STRIPE_WEBHOOK_SECRET is not configured" });
+  }
+
+  const signature = req.headers["stripe-signature"];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, signature, STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error("Stripe webhook signature verification failed:", err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  try {
+    const sessionObj = event.data.object;
+
+    if (
+      event.type === "checkout.session.completed" ||
+      event.type === "checkout.session.async_payment_succeeded"
+    ) {
+      if (sessionObj.payment_status === "paid") {
+        await markCheckoutSessionPaid(sessionObj);
+      }
+    } else if (
+      event.type === "checkout.session.expired" ||
+      event.type === "checkout.session.async_payment_failed"
+    ) {
+      await releasePendingCheckoutSession(sessionObj, event.type);
+    }
+
+    return res.json({ received: true });
+  } catch (err) {
+    console.error("Stripe webhook handling failed:", err && err.stack ? err.stack : err);
+    return res.status(500).json({ success: false, message: "Webhook handling failed" });
   }
 }
 
@@ -437,5 +580,7 @@ export default {
   listBookings,
   deleteBooking,
   getOccupiedSeats,
-  confirmPayment
+  cancelCheckoutSession,
+  confirmPayment,
+  stripeWebhook
 };

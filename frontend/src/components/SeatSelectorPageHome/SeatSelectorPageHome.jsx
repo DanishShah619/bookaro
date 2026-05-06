@@ -60,6 +60,22 @@ const getAuthToken = () =>
   localStorage.getItem("jwt") ||
   null;
 
+const getStoredUserEmail = () => {
+  try {
+    const direct =
+      localStorage.getItem("userEmail") ||
+      localStorage.getItem("cine_user_email") ||
+      null;
+    if (direct) return direct;
+    const raw = localStorage.getItem("user");
+    if (raw) {
+      const u = JSON.parse(raw);
+      return u?.email || "";
+    }
+  } catch (e) {}
+  return "";
+};
+
 const normalizeSeatId = (s) => (s ? String(s).trim().toUpperCase() : "");
 const sameMinute = (a, b) => {
   if (!a || !b) return false;
@@ -434,7 +450,7 @@ export default function SeatSelectorPage() {
         seats: seatsArr,
         paymentMethod: "card",
         currency: "INR",
-        email: "",
+        email: getStoredUserEmail(),
       };
 
       const res = await axios.post(`${API_BASE}/api/bookings`, payload, {

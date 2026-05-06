@@ -22,9 +22,10 @@ services:
       DATABASE_URL: mongodb://mongo:27017/moviebooking
       JWT_SECRET: ${JWT_SECRET:-change-me-in-docker-compose}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       GNEWS_API_KEY: ${GNEWS_API_KEY:-}
-      API_BASE_URL: http://localhost:5000
-      CLIENT_URL: http://localhost:5173
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:5000}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:5173}
     ports:
       - "5000:5000"
     volumes:
@@ -42,7 +43,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE_URL: http://localhost:5000
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:5000}
     restart: unless-stopped
     ports:
       - "5173:80"
@@ -54,7 +55,7 @@ services:
     build:
       context: ./admin
       args:
-        VITE_API_BASE_URL: http://localhost:5000
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:5000}
     restart: unless-stopped
     ports:
       - "5174:80"

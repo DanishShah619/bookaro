@@ -3,6 +3,8 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
 const VerifyPaymentPage = () => {
   const [statusMsg, setStatusMsg] = useState("Verifying payment...");
   const navigate = useNavigate();
@@ -17,24 +19,33 @@ const VerifyPaymentPage = () => {
       // Trim session_id to remove accidental whitespace
       const rawSession = params.get("session_id");
       const session_id = rawSession ? rawSession.trim() : null;
-      const payment_status = params.get("payment_status");
       const token = localStorage.getItem("token");
+      const isCancelRoute = location.pathname === "/cancel";
 
       // If user canceled on Stripe-hosted checkout page
-      if (payment_status === "cancel") {
-        navigate("/checkout", { replace: true });
-        return;
-      }
-
       if (!session_id) {
         setStatusMsg("No session_id provided in the URL.");
         return;
       }
 
       try {
+        if (isCancelRoute) {
+          setStatusMsg("Releasing your seat hold...");
+          await axios.post(
+            `${API_BASE}/api/bookings/cancel-checkout`,
+            { session_id },
+            {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+              timeout: 15000,
+            }
+          );
+
+          if (!cancelled) navigate("/bookings", { replace: true });
+          return;
+        }
+
         setStatusMsg("Confirming payment with server...");
 
-        const API_BASE = "http://localhost:5000";
         const res = await axios.get(
           `${API_BASE}/api/bookings/confirm-payment`,
           {
@@ -84,7 +95,7 @@ const VerifyPaymentPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [search, navigate]);
+  }, [search, location.pathname, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center text-white p-4">

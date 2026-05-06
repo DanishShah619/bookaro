@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 
-const JWT_SECRET = "your_jwt_secret_here";
+const JWT_SECRET = process.env.JWT_SECRET || "default_jwt_secret";
 const TOKEN_EXPIRES_IN = "24h";
 
 /* ---------------- helpers ---------------- */

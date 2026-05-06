@@ -6,6 +6,7 @@ import {
   listBookings,
 
   confirmPayment,
+  cancelCheckoutSession,
   deleteBooking,
   getOccupiedSeats,
 } from "../controllers/bookingController.js";
@@ -14,7 +15,8 @@ import authMiddleware from "../middlewares/auth.js";
 const bookingRouter = express.Router();
 
 bookingRouter.post("/", authMiddleware, createBooking);
-bookingRouter.get("/confirm-payment", confirmPayment);
+bookingRouter.get("/confirm-payment", authMiddleware, confirmPayment);
+bookingRouter.post("/cancel-checkout", authMiddleware, cancelCheckoutSession);
 bookingRouter.get("/", listBookings);
 bookingRouter.get("/occupied",getOccupiedSeats);
 

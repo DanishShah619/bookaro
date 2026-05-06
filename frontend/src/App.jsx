@@ -13,7 +13,7 @@ import SeatSelectorPage from "./components/SeatSelectorPage/SeatSelectorPage";
 import MovieDetailPageHome from "./pages/MovieDetailPageHome/MovieDetailPageHome";
 import SeatSelectorPageHome from "./components/SeatSelectorPageHome/SeatSelectorPageHome";
 import Booking from "./pages/Booking/Booking";
-import VerifyPaymentPage from "../VerifyPaymentPage";
+import VerifyPaymentPage from "./pages/VerifyPaymentPage";
 
 /**
  * ScrollToTop component:
