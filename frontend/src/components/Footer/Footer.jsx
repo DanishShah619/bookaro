@@ -13,7 +13,8 @@ import {
   Film,
   Star,
   Ticket,
-  Popcorn
+  Popcorn,
+  Github
 } from 'lucide-react';
 import { footerStyles } from '../../assets/dummyStyles';
 
@@ -120,14 +121,14 @@ const Footer = () => {
             </p>
             <div className={footerStyles.socialContainer}>
               {[
-                { Icon: Facebook },
-                { Icon: Twitter },
-                { Icon: Instagram },
-                { Icon: Youtube }
+                { Icon: Facebook ,href:"https://www.facebook.com/profile.php?id=61554924463127"},
+                { Icon: Twitter ,href:"https://x.com/shanil46013"},
+                { Icon: Instagram ,href:"https://www.instagram.com/danish_shanil/?hl=en"},
+                { Icon: Github ,href:"https://github.com/DanishShah619"}
               ].map((item, index) => (
                 <a 
                   key={index}
-                  href="#" 
+                  href={item.href} 
                   className={footerStyles.socialLink}
                   aria-label={`Visit our ${item.Icon.name || 'social'} page`}
                 >
