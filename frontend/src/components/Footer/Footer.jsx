@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Clapperboard, 
-  Facebook, 
-  Twitter, 
-  Instagram, 
-  Youtube, 
-  Mail, 
-  Phone, 
+import {
+  Clapperboard,
+  Facebook,
+  Twitter,
+  Instagram,
+  Youtube,
+  Mail,
+  Phone,
   MapPin,
   Heart,
   ArrowUp,
@@ -20,11 +20,11 @@ import { footerStyles } from '../../assets/dummyStyles';
 
 const Footer = () => {
   const [isVisible, setIsVisible] = useState(false);
-  
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  
+
   const links = [
     { label: "Home", href: "/" },
     { label: "Movies", href: "/movies" },
@@ -32,7 +32,7 @@ const Footer = () => {
     { label: "Contact", href: "/contact" },
     { label: "Login", href: "/login" }
   ];
-  
+
   const genreLinks = [
     { label: "Horror", href: "/movies" },
     { label: "Thriller", href: "/movies" },
@@ -106,7 +106,7 @@ const Footer = () => {
                 <div className={footerStyles.logoGlow} />
                 <div className={footerStyles.logoContainer}>
                   <Clapperboard className={footerStyles.logoIcon} />
-                </div> 
+                </div>
               </div>
               <h2
                 className={footerStyles.brandTitle}
@@ -120,14 +120,16 @@ const Footer = () => {
             </p>
             <div className={footerStyles.socialContainer}>
               {[
-                { Icon: Facebook ,href:"https://www.facebook.com/profile.php?id=61554924463127"},
-                { Icon: Twitter ,href:"https://x.com/shanil46013"},
-                { Icon: Instagram ,href:"https://www.instagram.com/danish_shanil/?hl=en"},
-                { Icon: Github ,href:"https://github.com/DanishShah619"}
+                { Icon: Facebook, href: "https://www.facebook.com/profile.php?id=61554924463127" },
+                { Icon: Twitter, href: "https://x.com/shanil46013" },
+                { Icon: Instagram, href: "https://www.instagram.com/danish_shanil/?hl=en" },
+                { Icon: Github, href: "https://github.com/DanishShah619" }
               ].map((item, index) => (
-                <a 
+                <a
                   key={index}
-                  href={item.href} 
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={footerStyles.socialLink}
                   aria-label={`Visit our ${item.Icon.name || 'social'} page`}
                 >
@@ -232,12 +234,12 @@ const Footer = () => {
               Danish Shanil Shah
             </a>
           </div>
-          
+
           <div className={footerStyles.policyLinks}>
             {['Privacy Policy', 'Terms of Service', 'Cookie Policy'].map((item, index) => (
-              <a 
+              <a
                 key={index}
-                href="#" 
+                href="#"
                 className={footerStyles.policyLink}
               >
                 {item}
@@ -249,7 +251,7 @@ const Footer = () => {
 
       {/* Scroll to top button */}
       {isVisible && (
-        <button 
+        <button
           onClick={scrollToTop}
           className={footerStyles.scrollTopButton}
           aria-label="Scroll to top"

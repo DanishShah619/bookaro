@@ -86,31 +86,24 @@ const App = () => {
       <div className="min-h-screen w-full overflow-x-hidden">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/movies" element={<Movie />} />
+          {/* /movies — grouped under one parent to avoid duplicate-key warning */}
+          <Route path="/movies">
+            <Route index element={<Movie />} />
+            <Route path=":id" element={<MovieDetailPage />} />
+            <Route path=":id/seat/:slot" element={<SeatSelectorPage />} />
+            <Route path=":id/seat-selector/:slot" element={<SeatSelectorPage />} />
+          </Route>
+
           <Route path="/releases" element={<Release />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/bookings" element={<Booking />} />
 
+          {/* /movie — individual movie detail + seat selector (home variant) */}
           <Route path="/movie/:id" element={<MovieDetailPageHome />} />
-
-          <Route
-            path="/movie/:id/seat/:slot"
-            element={<SeatSelectorPageHome />}
-          />
-          <Route
-            path="/movie/:id/seat-selector/:slot"
-            element={<SeatSelectorPageHome />}
-          />
-
-          <Route path="/movies/:id" element={<MovieDetailPage />} />
-
-          <Route path="/movies/:id/seat/:slot" element={<SeatSelectorPage />} />
-          <Route
-            path="/movies/:id/seat-selector/:slot"
-            element={<SeatSelectorPage />}
-          />
+          <Route path="/movie/:id/seat/:slot" element={<SeatSelectorPageHome />} />
+          <Route path="/movie/:id/seat-selector/:slot" element={<SeatSelectorPageHome />} />
 
           <Route path="/success" element={<VerifyPaymentPage />} />
           <Route path="/cancel" element={<VerifyPaymentPage />} />

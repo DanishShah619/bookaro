@@ -200,8 +200,9 @@ const Trailers = () => {
       }
 
       try {
-        // request latestTrailers type from backend
-        const url = `${API_BASE}/api/movies?type=latestTrailers&limit=50`;
+        // Fetch all movies — avoid filtering by type so the trailer page
+        // is always populated regardless of how movies were created.
+        const url = `${API_BASE}/api/movies?limit=50&sort=-createdAt`;
         const res = await fetch(url, { signal: ac.signal });
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -209,7 +210,6 @@ const Trailers = () => {
         const items = Array.isArray(json.items) ? json.items : [];
         // map each movie doc to the trailer item the UI expects
         const mapped = items.map(mapMovieToTrailerItem);
-        console.log(mapped);
 
         if (!isMounted) return;
 
