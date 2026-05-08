@@ -650,7 +650,7 @@ export default function MovieDetailPage() {
                   onError={(e) => {
                     e.currentTarget.onerror = null;
                     e.currentTarget.src =
-                      "https://via.placeholder.com/320x480?text=No+Image";
+                      "https://placehold.co/320x480?text=No+Image";
                   }}
                   className={movieDetailHStyles.posterImage}
                 />

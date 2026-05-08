@@ -1,3 +1,5 @@
+import { setDefaultResultOrder } from "dns";
+setDefaultResultOrder("ipv4first");
 import cors from 'cors';
 import 'dotenv/config';
 import express from 'express';
@@ -24,6 +26,7 @@ app.use('/api/auth', authLimiter); // Apply stricter rate limit to auth routes
 connectDB();
 
 // Routes
+app.set('trust proxy', 1); 
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads"))); 
 app.use("/api/auth", userRouter)
 app.use("/api/movies", movieRouter);

@@ -13,7 +13,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { loginStyles } from "../../assets/dummyStyles";
 
 // API base (points to /api/auth)
-const API_BASE = "http://localhost:5000/api/users";
+const API_BASE = "http://localhost:5000/api/auth";
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
@@ -46,7 +46,6 @@ const LoginPage = () => {
       const payload = {
         email: formData.email.trim(),
         password: formData.password,
-        requireAdmin: true
       };
       const res = await axios.post(`${API_BASE}/login`, payload, {
         headers: { "Content-Type": "application/json" },
@@ -70,6 +69,7 @@ const LoginPage = () => {
             JSON.stringify({
               isLoggedIn: true,
               email: userToStore.email || formData.email,
+              isAdmin: userToStore.isAdmin || false,
             })
           );
           localStorage.setItem("isLoggedIn", "true");
@@ -91,7 +91,13 @@ const LoginPage = () => {
 
         // Redirect shortly after success
         setTimeout(() => {
-          window.location.href = "/";
+          // If the user is an admin, redirect them to the admin portal. 
+          // Assuming the admin vite app runs on port 5174 locally.
+          if (data?.user?.isAdmin) {
+            window.location.href = "http://localhost:5174/";
+          } else {
+            window.location.href = "/";
+          }
         }, 1200);
       } else {
         // handle unexpected successful HTTP response but unsuccessful payload

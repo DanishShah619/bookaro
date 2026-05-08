@@ -230,7 +230,7 @@ const ContactPage = () => {
                     </div>
                     <div>
                       <h3 className={contactStyles.contactText}>Booking Hotline</h3>
-                      <p className={contactStyles.contactDetail}>+91 8299431275</p>
+                      <p className={contactStyles.contactDetail}>+91 9123707332</p>
                     </div>
                   </div>
                   
@@ -240,8 +240,8 @@ const ContactPage = () => {
                     </div>
                     <div>
                       <h3 className={contactStyles.contactText}>Email Address</h3>
-                      <p className={contactStyles.contactDetail}>shanildanshah@gmail.com.com</p>
-                      <p className={contactStyles.contactDetail}>shanildanshah@gmail.com.com</p>
+                      <p className={contactStyles.contactDetail}>shanildanshah@gmail.com</p>
+                      <p className={contactStyles.contactDetail}>danishshanil@gmail.com.com</p>
                     </div>
                   </div>
                   

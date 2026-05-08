@@ -17,6 +17,12 @@ export default function DashboardPage() {
   const [bookings, setBookings] = useState([]);
   const [users, setUsers] = useState([]);
 
+
+  function getAuthHeaders() {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
   useEffect(() => {
     let cancelled = false;
 
@@ -26,9 +32,12 @@ export default function DashboardPage() {
         const [mRes, bRes, uRes] = await Promise.allSettled([
           axios.get(`${API_BASE}/api/movies`),
           axios.get(`${API_BASE}/api/bookings`, {
+            headers: getAuthHeaders(),
             params: { paymentStatus: "paid", limit: 1000 },
           }),
-          axios.get(`${API_BASE}/api/users`),
+          axios.get(`${API_BASE}/api/users`,{
+            headers: getAuthHeaders(),
+          })
         ]);
 
         // helper to normalise typical API shapes

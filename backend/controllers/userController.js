@@ -2,7 +2,10 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "default_jwt_secret";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("FATAL: JWT_SECRET environment variable is not set. Refusing to start.");
+}
 const TOKEN_EXPIRES_IN = "24h";
 
 /* ---------------- helpers ---------------- */
@@ -90,7 +93,7 @@ export const registerUser = async (req, res) => {
 /* ---------------- login ---------------- */
 export async function login(req, res) {
   try {
-    const { email, password } = req.body || {};
+    const { email, password, requireAdmin } = req.body || {};
 
     if (!email || !password) {
       return res.status(400).json({ success: false, message: "All fields are required." });
@@ -103,7 +106,7 @@ export async function login(req, res) {
     if (!isMatch) return res.status(401).json({ success: false, message: "Invalid email or password." });
 
      // If this login is from the admin panel, block non-admins immediately
-    if (needsAdmin && !user.isAdmin) {
+    if (requireAdmin && !user.isAdmin) {
       return res.status(403).json({ success: false, message: "Access denied. Admin only." });
     }
 
@@ -125,6 +128,6 @@ export async function login(req, res) {
     });
   } catch (err) {
     console.error("Login error:", err);
-    return res.status(500).json({ success: false, message: "Server error." });
+    return res.status(500).json({ success: false, message: err.message || "Server error." });
   }
 }

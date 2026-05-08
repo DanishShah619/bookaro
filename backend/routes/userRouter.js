@@ -1,13 +1,16 @@
 import express from "express";
 import { login, registerUser } from "../controllers/userController.js";
 import { authLimiter } from "../middlewares/rateLimiter.js";
+import authMiddleware from "../middlewares/auth.js";
+import requireAdmin from "../middlewares/requireAdmin.js";
+import User from "../models/userModel.js";
 
 const userRouter = express.Router();
 
 userRouter.post("/register", authLimiter, registerUser);
 userRouter.post('/login', authLimiter, login);
 
-userRouter.get("/", authMiddleware, requireAdmin, async (req, res) => {
+userRouter.get("/",authMiddleware, requireAdmin, async (req, res) => {
   try {
     const users = await User.find({}).select("-password").lean();
     return res.json({ success: true, items: users });

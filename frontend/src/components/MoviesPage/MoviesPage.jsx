@@ -4,7 +4,7 @@ import { moviesPageStyles } from "../../assets/dummyStyles";
 
 const API_BASE = "http://localhost:5000";
 const COLLAPSE_COUNT = 12;
-const PLACEHOLDER = "https://via.placeholder.com/400x600?text=No+Poster";
+const PLACEHOLDER = "https://placehold.co/400x600?text=No+Poster";
 
 function getUploadUrl(maybe) {
   if (!maybe) return null;

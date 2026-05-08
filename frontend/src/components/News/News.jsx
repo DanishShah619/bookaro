@@ -21,7 +21,9 @@ const News = () => {
       try {
         const res = await fetch(`${API_BASE}/api/news/acting?limit=7`, {
           signal: ac.signal,
-        });
+        }
+      )
+        ;
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 

@@ -14,7 +14,7 @@ import { trailersStyles, trailersCSS } from "../../assets/dummyStyles";
 const API_BASE = "http://localhost:5000";
 const TRAILERS_POLL_INTERVAL_MS = 30000;
 const PLACEHOLDER_THUMB =
-  "https://via.placeholder.com/800x450?text=No+Thumbnail";
+  "https://placehold.co/800x450?text=No+Thumbnail";
   
 const _stripTrailing = (s = "") => s.replace(/\/+$/, "");
 
