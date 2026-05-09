@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { releasesStyles } from "../../assets/dummyStyles";
 import { BeamsBackground } from "../ui/beams-background";
+import { StaggerText } from "../ui/stagger-text";
 
 const API_BASE = "http://localhost:5000";
 const PLACEHOLDER_IMG = "https://placehold.co/400x600?text=No+Image";
@@ -108,7 +109,12 @@ const ReleasesPage = () => {
     <BeamsBackground intensity="subtle" className="min-h-screen">
     <div className={releasesStyles.pageContainer}>
       <div className={releasesStyles.headerContainer}>
-        <h1 className={releasesStyles.headerTitle}>RELEASES SOON</h1>
+        <StaggerText
+          text="Releases Soon"
+          direction="bottom"
+          stagger={0.04}
+          className="font-bold text-5xl md:text-6xl bg-clip-text text-transparent bg-gradient-to-r from-red-400 via-red-600 to-pink-500 font-[pacifico] text-center"
+        />
         <p className={releasesStyles.headerSubtitle}>
           Latest Movies • Now Showing
         </p>

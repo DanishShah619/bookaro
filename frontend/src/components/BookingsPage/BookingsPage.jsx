@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { bookingsPageStyles, formatTime, formatDuration } from "../../assets/dummyStyles";
 import { FlippingCard } from "../ui/flipping-card";
 import { BeamsBackground } from "../ui/beams-background";
+import { StaggerText } from "../ui/stagger-text";
 
 // API base
 const API_BASE = "http://localhost:5000";
@@ -427,7 +428,12 @@ export default function BookingsPage() {
     <div className={bookingsPageStyles.pageContainer}>
       <div className={bookingsPageStyles.mainContainer}>
         <header className={bookingsPageStyles.header}>
-          <h1 className={bookingsPageStyles.title}>Your Tickets</h1>
+          <StaggerText
+            text="Your Tickets"
+            direction="bottom"
+            stagger={0.04}
+            className="text-3xl md:text-4xl font-extrabold text-red-500"
+          />
           <div className={bookingsPageStyles.subtitle}>Present QR at entry</div>
         </header>
 
