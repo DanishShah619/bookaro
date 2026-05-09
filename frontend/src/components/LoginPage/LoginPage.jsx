@@ -94,7 +94,8 @@ const LoginPage = () => {
           // If the user is an admin, redirect them to the admin portal. 
           // Assuming the admin vite app runs on port 5174 locally.
           if (data?.user?.isAdmin) {
-            window.location.href = "http://localhost:5174/";
+            // Pass token via URL parameter so the admin portal (different port) can store it
+            window.location.href = `http://localhost:5174/?token=${data.token}`;
           } else {
             window.location.href = "/";
           }

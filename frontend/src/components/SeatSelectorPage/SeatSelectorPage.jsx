@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { seatSelectorHStyles } from "../../assets/dummyStyles";
+import InteractiveHoverButton from "../ui/interactive-hover-button";
 
 const API_BASE = "http://localhost:5000";
 
@@ -775,20 +776,17 @@ export default function SeatSelectorPage() {
                 )}
 
                 <div className={seatSelectorHStyles.actionButtons}>
-                  <button
+                  <InteractiveHoverButton
+                    text="Clear"
                     onClick={clearSelection}
                     disabled={selectedCount === 0 || bookingLoading}
-                    className={seatSelectorHStyles.clearButton}
-                  >
-                    Clear
-                  </button>
-                  <button
+                    className="border-red-700/60 text-red-400"
+                  />
+                  <InteractiveHoverButton
+                    text={bookingLoading ? "Booking..." : "Confirm Booking"}
                     onClick={confirmBooking}
                     disabled={bookingLoading || selectedCount === 0}
-                    className={seatSelectorHStyles.confirmButton}
-                  >
-                    {bookingLoading ? "Booking..." : "Confirm Booking"}
-                  </button>
+                  />
                 </div>
 
                 {!isLoggedIn && (

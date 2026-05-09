@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { movieDetailHStyles } from "../../assets/dummyStyles";
+import { ShinyButton } from "../../components/ui/shiny-button";
 
 const API_BASE = "http://localhost:5000";
 const ROWS = [
@@ -655,14 +656,14 @@ export default function MovieDetailPage() {
                   className={movieDetailHStyles.posterImage}
                 />
               </div>
-              <button
+              <ShinyButton
                 onClick={() => openTrailer(movie)}
                 className={movieDetailHStyles.trailerButton}
                 aria-label="Watch trailer"
               >
                 <Play size={18} />
                 <span>Watch Trailer</span>
-              </button>
+              </ShinyButton>
             </div>
           </div>
 
@@ -755,13 +756,13 @@ export default function MovieDetailPage() {
 
               {selectedTime && (
                 <div className={movieDetailHStyles.bookNowContainer}>
-                  <button
+                  <ShinyButton
                     onClick={handleBookNow}
                     className={movieDetailHStyles.bookNowButton}
                     aria-label="Proceed to seat selection"
                   >
                     Proceed to Seat Selection
-                  </button>
+                  </ShinyButton>
                 </div>
               )}
             </div>

@@ -1,9 +1,24 @@
 // src/pages/ContactPage.jsx
 import React, { useState } from 'react';
-import { MessageCircle, Send, Phone, MapPin, Mail, Clock, Film, Ticket, Popcorn } from 'lucide-react';
+import { MessageCircle, Send, Phone, MapPin, Mail, Ticket, Popcorn, CircleCheck, ExternalLink } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { contactStyles } from '../../assets/dummyStyles';
+import { BeamsBackground } from '../ui/beams-background';
+
+/* ─── shared input / label styles ─── */
+const inputCls =
+  'flex h-10 w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500/40 transition';
+
+const selectCls =
+  'flex h-10 w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500/40 transition appearance-none cursor-pointer';
+
+const labelCls = 'block text-sm font-medium text-gray-300 mb-1.5';
+
+const highlights = [
+  { id: 1, feature: 'Fast response within 24 hours' },
+  { id: 2, feature: 'Dedicated cinema support team' },
+  { id: 3, feature: 'WhatsApp instant messaging support' },
+];
 
 const ContactPage = () => {
   const [formData, setFormData] = useState({
@@ -45,71 +60,46 @@ const ContactPage = () => {
   };
 
   return (
-    <div className={contactStyles.pageContainer}>
-      <ToastContainer
-        position="top-right"
-        autoClose={2000}
-        hideProgressBar={false}
-        newestOnTop
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="dark"
-      />
-      
-      {/* Background decorative elements */}
-      <div className={contactStyles.bgGradient}></div>
-      <div className={contactStyles.bgBlob1}></div>
-      <div className={contactStyles.bgBlob2}></div>
-      
-      {/* Film strip effect */}
-      <div className={contactStyles.filmStripTop}>
-        {[...Array(20)].map((_, i) => (
-          <div key={i} className={contactStyles.filmStripSegment}></div>
-        ))}
-      </div>
-      <div className={contactStyles.filmStripBottom}>
-        {[...Array(20)].map((_, i) => (
-          <div key={i} className={contactStyles.filmStripSegment}></div>
-        ))}
-      </div>
+    <BeamsBackground intensity="medium" className="min-h-screen">
+      <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8 text-white">
+        <ToastContainer
+          position="top-right"
+          autoClose={2000}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="dark"
+        />
 
-      <div className={contactStyles.contentContainer}>
-        {/* Animated Heading */}
-        <div className={contactStyles.headerContainer}>
-          <div className="inline-flex items-center justify-center mb-4">
-            <h1 className={contactStyles.headerTitle}>
-              <span className={contactStyles.headerTitleRed}>Contact</span>
-              <span className={contactStyles.headerTitleWhite}>Us</span>
+        <div className="mx-auto max-w-6xl">
+
+          {/* ── Page heading ── */}
+          <div className="mb-10">
+            <h1 className="text-3xl font-semibold text-white">
+              <span className="text-red-400">Contact</span>{' '}
+              <span className="text-white">Us</span>
             </h1>
+            <p className="mt-1 text-sm text-gray-400">
+              Have questions about movie bookings or special events? Our team is here to help you!
+            </p>
           </div>
-          <p className={contactStyles.headerSubtitle}>
-            Have questions about movie bookings or special events? Our team is here to help you!
-          </p>
-        </div>
 
-        <div className={contactStyles.gridContainer}>
-          {/* Contact Form Card - Creative Shape */}
-          <div className={contactStyles.cardRelative}>
-            <div className={contactStyles.cardGradient}></div>
-            <div className={contactStyles.cardContainer}>
-              <div className={contactStyles.cardBadge}>
-                <Ticket className={contactStyles.cardIcon} />
-                BOOKING SUPPORT
-              </div>
-              
-              <h2 className={contactStyles.formTitle}>
-                <MessageCircle className={contactStyles.formTitleIcon} />
-                Send us a Message
-              </h2>
-              
-              <form onSubmit={handleSubmit} className={contactStyles.form}>
-                <div className={contactStyles.formGrid}>
+          {/* ── 12-column grid ── */}
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-12">
+
+            {/* ── LEFT: Form (7 cols) ── */}
+            <div className="lg:col-span-7">
+              <form onSubmit={handleSubmit} className="space-y-6">
+
+                {/* Name + Email row */}
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="name" className={contactStyles.inputGroup}>
-                      Full Name *
+                    <label htmlFor="name" className={labelCls}>
+                      Full Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -118,14 +108,14 @@ const ContactPage = () => {
                       value={formData.name}
                       onChange={handleChange}
                       required
-                      className={contactStyles.input}
+                      className={inputCls}
                       placeholder="Your name"
                     />
                   </div>
-                  
+
                   <div>
-                    <label htmlFor="email" className={contactStyles.inputGroup}>
-                      Email Address *
+                    <label htmlFor="email" className={labelCls}>
+                      Email Address <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="email"
@@ -134,15 +124,16 @@ const ContactPage = () => {
                       value={formData.email}
                       onChange={handleChange}
                       required
-                      className={contactStyles.input}
+                      className={inputCls}
                       placeholder="your.email@example.com"
                     />
                   </div>
                 </div>
-                
+
+                {/* Phone */}
                 <div>
-                  <label htmlFor="phone" className={contactStyles.inputGroup}>
-                    Phone Number *
+                  <label htmlFor="phone" className={labelCls}>
+                    Phone Number <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="tel"
@@ -155,15 +146,18 @@ const ContactPage = () => {
                     pattern="[0-9]{10}"
                     maxLength={10}
                     title="Enter a 10-digit phone number"
-                    className={contactStyles.input}
+                    className={inputCls}
                     placeholder="Your phone number"
                   />
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    10-digit mobile number, digits only
+                  </p>
                 </div>
 
-                
+                {/* Subject */}
                 <div>
-                  <label htmlFor="subject" className={contactStyles.inputGroup}>
-                    Subject *
+                  <label htmlFor="subject" className={labelCls}>
+                    Subject <span className="text-red-500">*</span>
                   </label>
                   <select
                     id="subject"
@@ -171,21 +165,22 @@ const ContactPage = () => {
                     value={formData.subject}
                     onChange={handleChange}
                     required
-                    className={contactStyles.select}
+                    className={selectCls}
                   >
-                    <option value="">Select a subject</option>
-                    <option value="Ticket Booking">Ticket Booking</option>
-                    <option value="Group Events">Group Events</option>
-                    <option value="Membership">Membership Inquiry</option>
-                    <option value="Technical Issue">Technical Issue</option>
-                    <option value="Refund">Refund Request</option>
-                    <option value="Other">Other</option>
+                    <option value="" className="bg-gray-900">Select a subject</option>
+                    <option value="Ticket Booking" className="bg-gray-900">Ticket Booking</option>
+                    <option value="Group Events" className="bg-gray-900">Group Events</option>
+                    <option value="Membership" className="bg-gray-900">Membership Inquiry</option>
+                    <option value="Technical Issue" className="bg-gray-900">Technical Issue</option>
+                    <option value="Refund" className="bg-gray-900">Refund Request</option>
+                    <option value="Other" className="bg-gray-900">Other</option>
                   </select>
                 </div>
-                
+
+                {/* Message */}
                 <div>
-                  <label htmlFor="message" className={contactStyles.inputGroup}>
-                    Message *
+                  <label htmlFor="message" className={labelCls}>
+                    Message <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     id="message"
@@ -194,94 +189,120 @@ const ContactPage = () => {
                     onChange={handleChange}
                     required
                     rows="4"
-                    className={contactStyles.textarea}
+                    className={`${inputCls} h-auto resize-none`}
                     placeholder="Please describe your inquiry in detail..."
-                  ></textarea>
+                  />
                 </div>
-                
-                <button
-                  type="submit"
-                  className={contactStyles.submitButton}
-                >
-                  Send via WhatsApp
-                  <Send className={contactStyles.buttonIcon} />
-                </button>
+
+                {/* ── Separator ── */}
+                <div className="h-px w-full bg-white/10 my-2" />
+
+                {/* ── Actions ── */}
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ name: '', email: '', phone: '', subject: '', message: '' })}
+                    className="h-10 px-4 rounded-md text-sm font-medium text-gray-300 hover:text-white hover:bg-white/8 transition border border-transparent"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-2 h-10 px-5 rounded-md text-sm font-semibold bg-red-600 hover:bg-red-700 text-white transition shadow-sm"
+                  >
+                    Send via WhatsApp
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
               </form>
             </div>
-          </div>
-          
-          {/* Contact Information & Additional Cards */}
-          <div className="space-y-6">
-            {/* Contact Information Card */}
-            <div className={contactStyles.cardRelative}>
-              <div className={contactStyles.cardGradient}></div>
-              <div className={contactStyles.cardContainer}>
-                <div className={contactStyles.cardBadge}>
-                  <Popcorn className={contactStyles.cardIcon} />
-                  CINEMA INFO
+
+            {/* ── RIGHT: Info card (5 cols) ── */}
+            <div className="lg:col-span-5 space-y-5">
+
+              {/* Contact info card */}
+              <div className="rounded-lg border border-white/10 bg-white/5 backdrop-blur-sm p-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <Ticket className="h-4 w-4 text-red-400" />
+                  <span className="text-xs font-bold tracking-widest text-red-400 uppercase">
+                    Booking Support
+                  </span>
                 </div>
-                
-                <h2 className={contactStyles.formTitle}>Contact Information</h2>
-                
-                <div className={contactStyles.contactInfo}>
-                  <div className={contactStyles.contactItem}>
-                    <div className={contactStyles.contactIconContainer}>
-                      <Phone className={contactStyles.contactIcon} />
+                <h2 className="text-base font-semibold text-white mb-2 mt-3">
+                  Contact Information
+                </h2>
+                <p className="text-sm leading-6 text-gray-400 mb-5">
+                  Our cinema support team is available during all show hours. Reach out via any of the channels below.
+                </p>
+
+                {/* Highlights */}
+                <ul className="space-y-2 mb-5">
+                  {highlights.map((item) => (
+                    <li key={item.id} className="flex items-center gap-2 text-sm text-gray-300">
+                      <CircleCheck className="h-4 w-4 text-red-400 shrink-0" />
+                      <span>{item.feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="h-px w-full bg-white/10 mb-5" />
+
+                {/* Contact details */}
+                <ul className="space-y-4">
+                  <li className="flex items-start gap-3">
+                    <div className="mt-0.5 rounded-md border border-white/10 bg-white/5 p-2">
+                      <Phone className="h-4 w-4 text-red-400" />
                     </div>
                     <div>
-                      <h3 className={contactStyles.contactText}>Booking Hotline</h3>
-                      <p className={contactStyles.contactDetail}>+91 9123707332</p>
+                      <p className="text-sm font-semibold text-white">Booking Hotline</p>
+                      <p className="text-sm text-gray-400">+91 9123707332</p>
                     </div>
-                  </div>
-                  
-                  <div className={contactStyles.contactItem}>
-                    <div className={contactStyles.contactIconContainer}>
-                      <Mail className={contactStyles.contactIcon} />
-                    </div>
-                    <div>
-                      <h3 className={contactStyles.contactText}>Email Address</h3>
-                      <p className={contactStyles.contactDetail}>shanildanshah@gmail.com</p>
-                      <p className={contactStyles.contactDetail}>danishshanil@gmail.com.com</p>
-                    </div>
-                  </div>
-                  
-                  <div className={contactStyles.contactItem}>
-                    <div className={contactStyles.contactIconContainer}>
-                      <MapPin className={contactStyles.contactIcon} />
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="mt-0.5 rounded-md border border-white/10 bg-white/5 p-2">
+                      <Mail className="h-4 w-4 text-red-400" />
                     </div>
                     <div>
-                      <h3 className={contactStyles.contactText}>Main Theater Location</h3>
-                      <p className={contactStyles.contactDetail}>7/1 Govind Dhar Lane, Central Avenue ,Kolkata ,700001</p>
-                      <p className={contactStyles.contactSubDetail}>+4 other locations across the city</p>
+                      <p className="text-sm font-semibold text-white">Email Address</p>
+                      <p className="text-sm text-gray-400">shanildanshah@gmail.com</p>
+                      <p className="text-sm text-gray-400">danishshanil@gmail.com</p>
                     </div>
-                  </div>
-                </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="mt-0.5 rounded-md border border-white/10 bg-white/5 p-2">
+                      <MapPin className="h-4 w-4 text-red-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">Main Theater Location</p>
+                      <p className="text-sm text-gray-400">7/1 Govind Dhar Lane, Central Avenue, Kolkata 700001</p>
+                      <p className="text-xs text-red-400 mt-0.5">+4 other locations across the city</p>
+                    </div>
+                  </li>
+                </ul>
               </div>
-            </div>
-            
-            {/* Emergency Support Card */}
-            <div className={contactStyles.cardRelative}>
-              <div className={contactStyles.emergencyCardGradient}></div>
-              <div className={contactStyles.emergencyCard}>
-                <h3 className={contactStyles.emergencyTitle}>
-                  <Phone className={contactStyles.emergencyIcon} />
+
+              {/* Emergency card */}
+              <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 backdrop-blur-sm p-5">
+                <h3 className="text-sm font-semibold text-amber-400 flex items-center gap-2 mb-2">
+                  <Phone className="h-4 w-4" />
                   Urgent Show-Related Issues
                 </h3>
-                <p className={contactStyles.emergencyText}>
+                <p className="text-sm text-gray-400 mb-3">
                   For urgent issues during a movie screening (sound, projection, etc.)
                 </p>
-                <div className="flex items-center">
-                  <div className={contactStyles.emergencyHotline}>
+                <div className="flex items-center gap-3">
+                  <span className="rounded-full bg-amber-600 px-3 py-1 text-xs font-bold text-white">
                     HOTLINE: +91 9123707332
-                  </div>
-                  <span className={contactStyles.emergencyNote}>Available during showtimes</span>
+                  </span>
+                  <span className="text-xs text-amber-400">Available during showtimes</span>
                 </div>
               </div>
             </div>
+
           </div>
         </div>
       </div>
-    </div>
+    </BeamsBackground>
   );
 };
 

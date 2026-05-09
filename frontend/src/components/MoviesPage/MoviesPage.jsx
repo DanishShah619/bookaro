@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { moviesPageStyles } from "../../assets/dummyStyles";
+import { BeamsBackground } from "../ui/beams-background";
+import { HoverBorderGradient } from "../ui/hover-border-gradient";
 
 const API_BASE = "http://localhost:5000";
 const COLLAPSE_COUNT = 12;
@@ -33,6 +35,11 @@ const categoriesList = [
   { id: "horror", name: "Horror" },
   { id: "comedy", name: "Comedy" },
   { id: "adventure", name: "Adventure" },
+  { id: "drama", name: "Drama" },
+  { id: "thriller", name: "Thriller" },
+  { id: "scary", name: "Scary" },
+  { id: "historical", name: "Historical" },
+  { id:"fantasy", name: "Fantasy"}
 ];
 
 const mapBackendMovie = (m) => {
@@ -70,8 +77,8 @@ export default function MoviesPage() {
       setError(null);
 
       try {
-        // ask backend for normal movies first
-        const url = `${API_BASE}/api/movies?type=normal&limit=200`;
+        // ask backend for all movies
+        const url = `${API_BASE}/api/movies?limit=200`;
         const res = await fetch(url, { signal: ac.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -135,23 +142,27 @@ export default function MoviesPage() {
     : filteredMovies.slice(0, COLLAPSE_COUNT);
 
   return (
+    <BeamsBackground intensity="subtle" className="min-h-screen">
     <div className={moviesPageStyles.container}>
       <section className={moviesPageStyles.categoriesSection}>
         <div className={moviesPageStyles.categoriesContainer}>
           <div className={moviesPageStyles.categoriesFlex}>
             {categoriesList.map((category) => (
-              <button
+              <HoverBorderGradient
                 key={category.id}
-                className={`${moviesPageStyles.categoryButton.base} ${
-                  activeCategory === category.id
-                    ? moviesPageStyles.categoryButton.active
-                    : moviesPageStyles.categoryButton.inactive
-                }`}
+                as="button"
                 onClick={() => setActiveCategory(category.id)}
                 type="button"
+                active={activeCategory === category.id}
+                containerClassName={`transition-transform duration-200 ${
+                  activeCategory === category.id ? "scale-105" : ""
+                }`}
+                className={
+                  activeCategory === category.id ? "text-white font-bold" : "text-gray-400"
+                }
               >
                 {category.name}
-              </button>
+              </HoverBorderGradient>
             ))}
           </div>
         </div>
@@ -214,9 +225,8 @@ export default function MoviesPage() {
                   >
                     {showAll
                       ? "Show less"
-                      : `Show more (${
-                          filteredMovies.length - COLLAPSE_COUNT
-                        } more)`}
+                      : `Show more (${filteredMovies.length - COLLAPSE_COUNT
+                      } more)`}
                   </button>
                 </div>
               )}
@@ -225,5 +235,6 @@ export default function MoviesPage() {
         </div>
       </section>
     </div>
+    </BeamsBackground>
   );
 }

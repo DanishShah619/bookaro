@@ -289,7 +289,7 @@ export const formatDuration = (mins) => {
 // Add to src/assets/dummyStyles.js
 export const contactStyles = {
   // Page container styles
-  pageContainer: "min-h-screen pt-15 bg-black text-white py-8 px-4 sm:px-6 lg:px-8 relative overflow-hidden",
+  pageContainer: "min-h-screen pt-15 text-white py-8 px-4 sm:px-6 lg:px-8 relative overflow-hidden",
   
   // Background elements
   bgGradient: "absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-red-900/20 to-transparent",
@@ -361,7 +361,7 @@ export const contactStyles = {
 
 export const moviesPageStyles = {
   // Layout
-  container: "min-h-screen pt-20 bg-gradient-to-b from-gray-900 to-black text-white",
+  container: "min-h-screen pt-20 text-white",
   
   // Categories section
   categoriesSection: "pt-12 px-4",

@@ -78,7 +78,7 @@ export default function AddMoviePage() {
     setDuration(total);
   }, [durationHours, durationMinutes]);
 
-  const availableCategories = ["Action", "Horror", "Comedy", "Adventure"];
+  const availableCategories = ["Action", "Horror", "Comedy", "Adventure", "Drama", "Thriller", "Scary", "Historical","Fantasy"];
 
   function toggleCategory(cat) {
     setCategories((prev) =>

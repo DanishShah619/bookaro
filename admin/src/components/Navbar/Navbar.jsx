@@ -8,6 +8,7 @@ import {
   Ticket,
   Menu as MenuIcon,
   X as XIcon,
+  LogOut,
 } from "lucide-react";
 import { styles4 } from "../../assets/dummyStyles";
 
@@ -28,6 +29,14 @@ export default function Navbar() {
       document.body.style.overflow = "";
     };
   }, [open, close]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("accessToken");
+    // Redirect to the main frontend login page
+    window.location.href = "http://localhost:5173/login";
+  };
 
   // NavLink content - reuse in desktop & mobile
   const NavItem = ({ to, icon, label, end = false, onClick }) => {
@@ -87,6 +96,16 @@ export default function Navbar() {
             <NavItem to="/dashboard" icon={Calendar} label="DASHBOARD" />
             {/* Bookings (new) */}
             <NavItem to="/bookings" icon={Ticket} label="BOOKINGS" />
+            
+            <button
+              onClick={handleLogout}
+              className={`${styles4.navLinkBase} ${styles4.navLinkInactive}`}
+            >
+              <LogOut className={`${styles4.navLinkIconBase} ${styles4.navLinkIconInactive}`} />
+              <span className={`${styles4.navLinkTextBase} ${styles4.navLinkTextInactive}`}>
+                LOGOUT
+              </span>
+            </button>
           </div>
 
           {/* Mobile / Tablet Hamburger */}
@@ -246,6 +265,14 @@ export default function Navbar() {
                 </>
               )}
             </NavLink>
+            
+            <button
+              onClick={handleLogout}
+              className={`${styles4.mobileNavLinkBase} ${styles4.mobileNavLinkInactive} w-full text-left`}
+            >
+              <LogOut className={`${styles4.mobileNavLinkIconBase} ${styles4.mobileNavLinkIconInactive}`} />
+              <span className={styles4.mobileNavLinkText}>LOGOUT</span>
+            </button>
           </nav>
 
           {/* Footer action (optional) */}
