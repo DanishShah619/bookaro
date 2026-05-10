@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Tickets } from "lucide-react";
 import { Link } from "react-router-dom";
 import { moviesStyles } from "../../assets/dummyStyles";
+import { ExpandableCard } from "../ui/expandable-card";
 
 const API_BASE = "http://localhost:5000";
-const PLACEHOLDER = "https://placehold.co/400x600?text=No+Poster";
+const PLACEHOLDER = "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800&h=600&fit=crop";
 
 function getUploadUrl(maybe) {
   if (!maybe) return null;
@@ -13,7 +13,7 @@ function getUploadUrl(maybe) {
     if (/localhost:\d+/.test(maybe)) {
       try {
         const url = new URL(maybe);
-        const filename = url.pathname.split('/uploads/').pop();
+        const filename = url.pathname.split("/uploads/").pop();
         return `${API_BASE}/uploads/${filename}`;
       } catch {
         return maybe;
@@ -21,8 +21,6 @@ function getUploadUrl(maybe) {
     }
     return maybe;
   }
-
-  // relative or "uploads/..." -> build with API_BASE
   const cleaned = String(maybe).replace(/^uploads\//, "");
   return `${API_BASE}/uploads/${cleaned}`;
 }
@@ -46,7 +44,6 @@ export default function Movies() {
 
         const items = json.items ?? (Array.isArray(json) ? json : []);
 
-        // Keep only featured items
         const featuredOnly = items.filter(
           (it) =>
             it?.featured === true ||
@@ -54,7 +51,6 @@ export default function Movies() {
             String(it?.type)?.toLowerCase() === "featured"
         );
 
-        // ✅ Show only featured movies, even if none
         setMovies(featuredOnly.slice(0, 6));
         setLoading(false);
       } catch (err) {
@@ -91,7 +87,7 @@ export default function Movies() {
           No featured movies found.
         </div>
       ) : (
-        <div className={moviesStyles.grid}>
+        <div className="flex flex-wrap justify-center gap-6 px-4">
           {movies.map((m) => {
             const rawImg =
               m.poster || m.latestTrailer?.thumbnail || m.thumbnail || null;
@@ -102,51 +98,81 @@ export default function Movies() {
               m.category ||
               "General";
             const movieId = m._id || m.id || title;
+            const synopsis =
+              m.synopsis || m.description || m.overview ||
+              "An exciting cinematic experience awaits. Click to discover the full story behind this featured film.";
+            const director = m.director || m.directedBy || "Unknown Director";
+            const cast = Array.isArray(m.cast)
+              ? m.cast.slice(0, 4).join(", ")
+              : m.cast || "See film details";
+            const duration = m.durationMins
+              ? `${Math.floor(m.durationMins / 60)}h ${m.durationMins % 60}m`
+              : m.duration || "N/A";
 
             return (
-              <article
+              <ExpandableCard
                 key={movieId}
-                className={moviesStyles.movieArticle}
-                aria-labelledby={`movie-title-${movieId}`}
+                title={title}
+                src={imgSrc}
+                description={category}
+                classNameExpanded="[&_h4]:text-black dark:[&_h4]:text-white [&_h4]:font-semibold [&_h4]:text-lg"
               >
-                <Link
-                  to={`/movie/${movieId}`}
-                  className={moviesStyles.movieLink}
-                  aria-label={`Open ${title} details`}
-                >
-                  <img
-                    src={imgSrc}
-                    alt={title}
-                    loading="lazy"
-                    className={moviesStyles.movieImage}
-                    onError={(e) => {
-                      e.currentTarget.src = PLACEHOLDER;
-                    }}
-                  />
-                </Link>
+                {/* Synopsis */}
+                <h4>About the Film</h4>
+                <p className="leading-relaxed">{synopsis}</p>
 
-                <div className={moviesStyles.movieInfo}>
-                  <div className={moviesStyles.titleContainer}>
-                    <Tickets
-                      className={moviesStyles.ticketsIcon}
-                      aria-hidden="true"
-                    />
-                    <span
-                      id={`movie-title-${movieId}`}
-                      className={moviesStyles.movieTitle}
-                      style={{ fontFamily: "'Pacifico', cursive" }}
-                    >
-                      {title}
+                {/* Details grid */}
+                <h4>Film Details</h4>
+                <div className="grid grid-cols-2 gap-3 w-full text-sm">
+                  <div className="bg-zinc-100 dark:bg-zinc-900 rounded-lg p-3">
+                    <span className="block text-xs uppercase tracking-widest text-zinc-400 mb-1">
+                      Director
+                    </span>
+                    <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                      {director}
                     </span>
                   </div>
-
-                  <div className={moviesStyles.categoryContainer}>
-                    <span className={moviesStyles.categoryText}>
-                      {category}
+                  <div className="bg-zinc-100 dark:bg-zinc-900 rounded-lg p-3">
+                    <span className="block text-xs uppercase tracking-widest text-zinc-400 mb-1">
+                      Duration
+                    </span>
+                    <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                      {duration}
+                    </span>
+                  </div>
+                  <div className="bg-zinc-100 dark:bg-zinc-900 rounded-lg p-3 col-span-2">
+                    <span className="block text-xs uppercase tracking-widest text-zinc-400 mb-1">
+                      Cast
+                    </span>
+                    <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                      {cast}
                     </span>
                   </div>
                 </div>
-              </article>
+
+                {/* Book now CTA */}
+                <Link
+                  to={`/movie/${movieId}`}
+                  className="mt-2 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm transition-colors duration-200"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Book Tickets
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 12h14" />
+                    <path d="m12 5 7 7-7 7" />
+                  </svg>
+                </Link>
+              </ExpandableCard>
             );
           })}
         </div>
