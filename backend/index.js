@@ -15,9 +15,44 @@ import { globalLimiter, authLimiter } from './middlewares/rateLimiter.js';
 
 const app = express();
 const port = process.env.PORT || 5000;
+const isProduction = process.env.NODE_ENV === "production";
+
+const requiredProductionEnv = [
+    "DATABASE_URL",
+    "JWT_SECRET",
+    "STRIPE_SECRET_KEY",
+    "CLIENT_URL",
+    "CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_API_KEY",
+    "CLOUDINARY_API_SECRET",
+];
+
+if (isProduction) {
+    const missing = requiredProductionEnv.filter((key) => !process.env[key]);
+    if (missing.length) {
+        throw new Error(`Missing required production env vars: ${missing.join(", ")}`);
+    }
+}
+
+const allowedOrigins = [
+    process.env.CLIENT_URL,
+    process.env.ADMIN_URL,
+    ...(process.env.CORS_ORIGINS || "").split(","),
+]
+    .map((origin) => String(origin || "").trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+
+const corsOptions = {
+    origin(origin, callback) {
+        if (!isProduction || !origin) return callback(null, true);
+        const normalizedOrigin = String(origin).replace(/\/+$/, "");
+        if (allowedOrigins.includes(normalizedOrigin)) return callback(null, true);
+        return callback(new Error("Not allowed by CORS"));
+    },
+};
 
 // Middleware
-app.use(cors())
+app.use(cors(corsOptions))
 app.post("/api/bookings/stripe-webhook", express.raw({ type: "application/json" }), stripeWebhook);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

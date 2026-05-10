@@ -30,7 +30,26 @@ const storage = new CloudinaryStorage({
   },
 });
 
-const upload = multer({ storage }).fields([
+const allowedMimeTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "video/mp4",
+  "video/x-matroska",
+]);
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024,
+    files: 64,
+    fields: 80,
+  },
+  fileFilter(req, file, cb) {
+    if (allowedMimeTypes.has(file.mimetype)) return cb(null, true);
+    return cb(new Error("Unsupported file type"));
+  },
+}).fields([
   { name: "poster", maxCount: 1 },
   { name: "trailerUrl", maxCount: 1 },
   { name: "videoUrl", maxCount: 1 },

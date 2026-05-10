@@ -23,11 +23,11 @@ bookingRouter.post("/unlock-seat", authMiddleware, unlockSeat);
 bookingRouter.post("/", authMiddleware, createBooking);
 bookingRouter.get("/confirm-payment", authMiddleware, confirmPayment);
 bookingRouter.post("/cancel-checkout", authMiddleware, cancelCheckoutSession);
-bookingRouter.get("/", listBookings);
+bookingRouter.get("/", authMiddleware, requireAdmin, listBookings);
 bookingRouter.get("/occupied", getOccupiedSeats);
 
 // Static named routes BEFORE dynamic /:id
-bookingRouter.get("/my", authMiddleware, requireAdmin, getBooking);
+bookingRouter.get("/my", authMiddleware, getBooking);
 bookingRouter.delete("/:id", authMiddleware, requireAdmin, deleteBooking);
 
 export default bookingRouter;

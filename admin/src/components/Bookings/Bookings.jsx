@@ -52,19 +52,10 @@ export default function Bookings() {
         // Request only paid bookings by default
         const params = { paymentStatus: "paid", limit: 1000 };
 
-        let res;
-        // try user-specific route first (/api/bookings/my), otherwise fallback to /api/bookings
-        try {
-          res = await axios.get(`${API_BASE}/api/bookings/my`, {
-            headers,
-            params,
-          });
-        } catch {
-          res = await axios.get(`${API_BASE}/api/bookings`, {
-            headers,
-            params,
-          });
-        }
+        const res = await axios.get(`${API_BASE}/api/bookings`, {
+          headers,
+          params,
+        });
 
         const data = res?.data;
         let items = [];

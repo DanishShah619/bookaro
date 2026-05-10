@@ -13,6 +13,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { BeamsBackground } from "../ui/beams-background";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000") + "/api/auth";
+const ADMIN_URL = (import.meta.env.VITE_ADMIN_URL || "http://localhost:5174").replace(/\/+$/, "");
 
 const inputCls =
   "flex h-10 w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500/40 transition pl-10";
@@ -67,7 +68,7 @@ const LoginPage = () => {
 
         setTimeout(() => {
           if (data?.user?.isAdmin) {
-            window.location.href = `http://localhost:5174/?token=${data.token}`;
+            window.location.href = `${ADMIN_URL}/#token=${encodeURIComponent(data.token)}`;
           } else {
             window.location.href = "/";
           }
