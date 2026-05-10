@@ -1,10 +1,12 @@
 // src/pages/BookingsPage.jsx
 import React, { useEffect, useState } from "react";
-import { Film, Clock, MapPin, QrCode, ChevronDown, X } from "lucide-react";
+import { Film, Clock, MapPin, QrCode, ChevronDown, X, Ticket } from "lucide-react";
 import QRCode from "qrcode";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { bookingsPageStyles, formatTime, formatDuration } from "../../assets/dummyStyles";
+import { FlippingCard } from "../ui/flipping-card";
+import { BeamsBackground } from "../ui/beams-background";
 
 // API base
 const API_BASE = "http://localhost:5000";
@@ -24,7 +26,6 @@ function normalizeApiBase(b) {
 function getImageUrl(maybe) {
   if (!maybe) return null;
 
-  // Already an object, pick common props
   if (typeof maybe === "object") {
     if (Array.isArray(maybe) && maybe.length) return getImageUrl(maybe[0]);
     const possible =
@@ -45,21 +46,17 @@ function getImageUrl(maybe) {
   const s = maybe.trim();
   if (!s) return null;
 
-  // data URI
   if (s.startsWith("data:")) return s;
 
   const apiBase = normalizeApiBase(API_BASE);
 
-  // protocol-relative
   let toParse = s;
   if (toParse.startsWith("//")) toParse = "http:" + toParse;
 
-  // If starts with `localhost:...` or `127.0.0.1:...` without scheme, add scheme
   if (/^(localhost|127\.0\.0\.1)(:|\/)/i.test(toParse)) {
     toParse = "http://" + toParse;
   }
 
-  // Absolute http(s): if host is localhost or 127.* rewrite to API_BASE/uploads/<filename>
   if (/^https?:\/\//i.test(toParse)) {
     try {
       const parsed = new URL(toParse);
@@ -70,27 +67,21 @@ function getImageUrl(maybe) {
         if (filename) return `${apiBase}/uploads/${filename}`;
         return `${apiBase}${parsed.pathname}`;
       }
-      // leave remote absolute urls intact (S3 etc.)
       return s;
     } catch {
       // fall through
     }
   }
 
-  // Leading slash -> absolute on API_BASE
   if (s.startsWith("/")) return `${apiBase}/${s.replace(/^\/+/, "")}`;
-
-  // uploads/filename -> apiBase/uploads/filename
   if (s.startsWith("uploads/")) return `${apiBase}/${s}`;
 
-  // hostname-like "localhost:5000/uploads/..." (no protocol)
   if (/^(localhost|127\.0\.0\.1)[:/]/i.test(s)) {
     const parts = s.split("/uploads/");
     const filename = parts.length > 1 ? parts.pop() : s.split("/").pop();
     if (filename) return `${apiBase}/uploads/${filename}`;
   }
 
-  // default treat as filename in uploads
   return `${apiBase}/uploads/${s.replace(/^uploads\//, "")}`;
 }
 
@@ -101,6 +92,168 @@ function getStoredToken() {
     localStorage.getItem("authToken") ||
     localStorage.getItem("accessToken") ||
     null
+  );
+}
+
+/* ==========================================================
+   BookingCardFront — the FRONT face of the flipping card
+   ========================================================== */
+function BookingCardFront({ b }) {
+  return (
+    <div className="flex flex-col h-full w-full overflow-hidden rounded-xl bg-neutral-950">
+      {/* Poster — object-contain so portrait images are never cropped */}
+      <div className="relative w-full bg-neutral-900" style={{ height: "260px" }}>
+        <img
+          src={b.poster || PLACEHOLDER_POSTER}
+          alt={b.title}
+          className="w-full h-full object-contain"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = PLACEHOLDER_POSTER;
+          }}
+        />
+        {/* Category badge */}
+        {b.category && (
+          <span className="absolute top-2 right-2 bg-black/70 text-white text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full backdrop-blur-sm">
+            {b.category}
+          </span>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="flex flex-col gap-2 px-4 pt-3 pb-3 flex-1">
+        {/* Title */}
+        <div className="flex items-center gap-1.5">
+          <Film size={14} className="text-rose-500 shrink-0" />
+          <h2
+            id={`booking-front-${b.id}-title`}
+            className="font-semibold text-sm text-neutral-50 truncate"
+          >
+            {b.title}
+          </h2>
+        </div>
+
+        {/* Time & Auditorium */}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+            <Clock size={12} className="shrink-0" />
+            <span>{formatTime(b.slotTime)}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+            <MapPin size={12} className="shrink-0" />
+            <span className="truncate">{b.auditorium}</span>
+          </div>
+        </div>
+
+        {/* Duration + click hint */}
+        <div className="mt-auto flex items-center justify-between pt-1 border-t border-neutral-800">
+          <span className="text-[11px] text-neutral-500">
+            {formatDuration(b.durationMins)}
+          </span>
+          <span className="text-[10px] text-rose-400 font-medium flex items-center gap-1">
+            <Ticket size={10} />
+            Click to flip
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ==========================================================
+   BookingCardBack — the BACK face of the flipping card
+   ========================================================== */
+function BookingCardBack({ b, totals, qrs, handleQrScan, toggle, expanded }) {
+  const isOpen = !!expanded[b.id];
+
+  return (
+    <div className="flex flex-col h-full w-full px-4 py-3 overflow-auto [scrollbar-width:none]">
+      {/* Header */}
+      <div className="mb-2 pb-2 border-b border-neutral-100 dark:border-neutral-800">
+        <p className="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-medium">
+          Booking ID
+        </p>
+        <p className="text-[11px] font-mono text-neutral-600 dark:text-neutral-300 truncate">
+          {b.id}
+        </p>
+      </div>
+
+      {/* Seats summary */}
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-neutral-500 dark:text-neutral-400">
+          Seats ({totals.seatCount})
+        </span>
+        <span className="text-sm font-bold text-neutral-900 dark:text-neutral-50">
+          ₹{totals.total.toLocaleString("en-IN")}
+        </span>
+      </div>
+
+      {/* Seat chips */}
+      {totals.seatCount > 0 && (
+        <div className="flex flex-wrap gap-1 mb-3">
+          {(b.seats || []).map((s) => (
+            <span
+              key={s.id || s}
+              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                s.type === "recliner"
+                  ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+                  : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
+              }`}
+            >
+              {s.id || s}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Pricing rows */}
+      <div className="text-xs space-y-1 mb-3 border-t border-neutral-100 dark:border-neutral-800 pt-2">
+        <div className="flex justify-between text-neutral-500 dark:text-neutral-400">
+          <span>Subtotal</span>
+          <span>₹{totals.subtotal.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex justify-between font-semibold text-neutral-800 dark:text-neutral-200">
+          <span>Total</span>
+          <span>₹{totals.total.toLocaleString("en-IN")}</span>
+        </div>
+      </div>
+
+      {/* QR code */}
+      <div className="flex items-center gap-3 border-t border-neutral-100 dark:border-neutral-800 pt-2 mt-auto">
+        <div className="flex items-center gap-1 text-[11px] text-neutral-500 dark:text-neutral-400">
+          <QrCode size={12} />
+          <span>Ticket QR</span>
+        </div>
+        <div className="ml-auto">
+          {qrs[b.id] && qrs[b.id].url ? (
+            <img
+              src={qrs[b.id].url}
+              alt={`${b.title} qr`}
+              className="w-14 h-14 rounded cursor-pointer hover:opacity-80 transition-opacity"
+              role="button"
+              tabIndex={0}
+              onClick={(e) => { e.stopPropagation(); handleQrScan(b.id); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); handleQrScan(b.id); } }}
+            />
+          ) : (
+            <span className="text-[10px] text-neutral-400 dark:text-neutral-500">QR unavailable</span>
+          )}
+        </div>
+      </div>
+
+      {/* Expand/collapse toggle */}
+      <button
+        onClick={(e) => { e.stopPropagation(); toggle(b.id); }}
+        aria-expanded={isOpen}
+        className="mt-2 flex items-center justify-center gap-1 w-full text-[11px] text-rose-500 hover:text-rose-600 font-medium transition-colors py-1"
+      >
+        <span>{isOpen ? "Less info" : "More info"}</span>
+        <ChevronDown
+          size={12}
+          className={`transition-transform duration-200 ${isOpen ? "rotate-180" : "rotate-0"}`}
+        />
+      </button>
+    </div>
   );
 }
 
@@ -177,15 +330,20 @@ export default function BookingsPage() {
           const movie = b.movie || {};
           const title = movie.title || movie.name || b.movieName || b.title || "Untitled";
           const rawPoster = movie.poster || b.poster || movie.image || "";
-          const poster = getImageUrl(rawPoster) || ""; // <-- normalized here
+          const poster = getImageUrl(rawPoster) || "";
           const category = movie.category || b.category || "";
           const durationMins = movie.durationMins ?? movie.duration ?? b.durationMins ?? 0;
           const slotTime = b.showtime || b.slotTime || b.slot || null;
           const auditorium = b.auditorium || b.audi || "Audi 1";
 
-          const seats = Array.isArray(b.seats) && b.seats.length
-            ? b.seats.map((s) => (typeof s === "string" ? { id: s } : { id: s.seatId || s.id || s.name || "", type: s.type, price: typeof s.price === "number" ? s.price : undefined }))
-            : [];
+          const seats =
+            Array.isArray(b.seats) && b.seats.length
+              ? b.seats.map((s) =>
+                  typeof s === "string"
+                    ? { id: s }
+                    : { id: s.seatId || s.id || s.name || "", type: s.type, price: typeof s.price === "number" ? s.price : undefined }
+                )
+              : [];
 
           let amount = 0;
           if (b.amountPaise !== undefined && b.amountPaise !== null) {
@@ -215,9 +373,7 @@ export default function BookingsPage() {
     }
 
     fetchMyBookings();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -245,12 +401,11 @@ export default function BookingsPage() {
       if (mounted) setQrs(map);
     };
     if (bookings.length) makeQrs();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [bookings]);
 
   const toggle = (id) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+
   const handleQrScan = (bookingId) => {
     const entry = qrs[bookingId];
     if (!entry || !entry.payload) return;
@@ -264,9 +419,11 @@ export default function BookingsPage() {
       console.error("Failed to parse QR payload", e);
     }
   };
+
   const closeModal = () => setScannedDetails(null);
 
   return (
+    <BeamsBackground intensity="subtle" className="min-h-screen">
     <div className={bookingsPageStyles.pageContainer}>
       <div className={bookingsPageStyles.mainContainer}>
         <header className={bookingsPageStyles.header}>
@@ -277,125 +434,43 @@ export default function BookingsPage() {
         {loading && <div className={bookingsPageStyles.loading}>Loading bookings…</div>}
         {!loading && error && <div className={bookingsPageStyles.error}>{error}</div>}
 
-        <div className={bookingsPageStyles.grid}>
+        {/* ── Card grid ── */}
+        <div className="flex flex-wrap justify-center gap-6 py-6 px-4">
           {bookings.length === 0 && !loading ? (
             <div className={bookingsPageStyles.noBookings}>No bookings found.</div>
           ) : (
             bookings.map((b) => {
               const totals = computeTotals(b);
-              const isOpen = !!expanded[b.id];
 
               return (
-                <article id={`booking-card-${b.id}`} key={b.id} className={bookingsPageStyles.bookingCard} aria-labelledby={`booking-${b.id}-title`}>
-                  <div className={bookingsPageStyles.cardContent}>
-                    <div className={bookingsPageStyles.posterContainer}>
-                      <img
-                        src={b.poster || PLACEHOLDER_POSTER}
-                        alt={b.title}
-                        className={bookingsPageStyles.poster}
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = PLACEHOLDER_POSTER;
-                        }}
+                <div
+                  id={`booking-card-${b.id}`}
+                  key={b.id}
+                  aria-labelledby={`booking-front-${b.id}-title`}
+                >
+                  <FlippingCard
+                    width={290}
+                    height={420}
+                    frontContent={<BookingCardFront b={b} />}
+                    backContent={
+                      <BookingCardBack
+                        b={b}
+                        totals={totals}
+                        qrs={qrs}
+                        handleQrScan={handleQrScan}
+                        toggle={toggle}
+                        expanded={expanded}
                       />
-                    </div>
-
-                    <div className={bookingsPageStyles.cardInfo}>
-                      <div className={bookingsPageStyles.cardHeader}>
-                        <div>
-                          <h2 id={`booking-${b.id}-title`} className={bookingsPageStyles.movieTitle}>
-                            <Film className={bookingsPageStyles.movieIcon} />
-                            <span>{b.title}</span>
-                          </h2>
-
-                          <div className={bookingsPageStyles.bookingId}>
-                            Booking ID:{" "}
-                            <span className={bookingsPageStyles.bookingIdText}>{b.id}</span>
-                          </div>
-                        </div>
-
-                        <div className={bookingsPageStyles.category}>
-                          <div className="hidden lg:block">{b.category}</div>
-                        </div>
-                      </div>
-
-                      <div className={bookingsPageStyles.details}>
-                        <div className={bookingsPageStyles.timeContainer}>
-                          <Clock className={bookingsPageStyles.timeIcon} />
-                          <div>{formatTime(b.slotTime)}</div>
-                        </div>
-
-                        <div className={bookingsPageStyles.locationContainer}>
-                          <MapPin className={bookingsPageStyles.locationIcon} />
-                          <div className={bookingsPageStyles.locationText}>{b.auditorium}</div>
-                        </div>
-                      </div>
-
-                      <div className={bookingsPageStyles.durationLabel}>Duration</div>
-                      <div className={bookingsPageStyles.duration}>{formatDuration(b.durationMins)}</div>
-                    </div>
-                  </div>
-
-                  <div className={bookingsPageStyles.summary}>
-                    <div className={bookingsPageStyles.seatsLabel}>Seats ({totals.seatCount})</div>
-                    <div className={bookingsPageStyles.total}>₹{totals.total.toLocaleString("en-IN")}</div>
-                  </div>
-
-                  <div className={`${bookingsPageStyles.expandedDetails} ${isOpen ? bookingsPageStyles.expandedOpen : bookingsPageStyles.expandedClosed}`} aria-hidden={!isOpen}>
-                    <div className={bookingsPageStyles.seatsSection}>
-                      <div className={bookingsPageStyles.seatsLabelExpanded}>Seats ({totals.seatCount})</div>
-                      <div className={bookingsPageStyles.seatsContainer}>
-                        {(b.seats || []).map((s) => (
-                          <div key={s.id || s} className={bookingsPageStyles.seatItem}>
-                            <div className={bookingsPageStyles.seatId}>{s.id || s}</div>
-                            <div className={`${bookingsPageStyles.seatType} ${s.type === "recliner" ? bookingsPageStyles.seatTypeRecliner : bookingsPageStyles.seatTypeStandard}`}>
-                              {s.type === "recliner" ? "Recliner" : "Standard"}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className={bookingsPageStyles.pricing}>
-                      <div className={bookingsPageStyles.subtotal}>
-                        <div>Seats subtotal</div>
-                        <div>₹{totals.subtotal.toLocaleString("en-IN")}</div>
-                      </div>
-
-                      <div className={bookingsPageStyles.finalTotal}>
-                        <div>Total</div>
-                        <div>₹{totals.total.toLocaleString("en-IN")}</div>
-                      </div>
-                    </div>
-
-                    <div className={bookingsPageStyles.qrSection}>
-                      <div className={bookingsPageStyles.qrLabel}>
-                        <QrCode className={bookingsPageStyles.qrIcon} />
-                        <div>Ticket QR</div>
-                      </div>
-                      <div className="ml-auto">
-                        {qrs[b.id] && qrs[b.id].url ? (
-                          <img src={qrs[b.id].url} alt={`${b.title} qr`} className={bookingsPageStyles.qrImage} role="button" tabIndex={0} onClick={() => handleQrScan(b.id)} onKeyDown={(e) => { if (e.key === "Enter") handleQrScan(b.id); }} />
-                        ) : (
-                          <div className={bookingsPageStyles.qrUnavailable}>QR unavailable</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className={bookingsPageStyles.toggleButton}>
-                    <button onClick={() => toggle(b.id)} aria-expanded={isOpen} className={bookingsPageStyles.detailsButton}>
-                      <span>{isOpen ? "Hide details" : "View details"}</span>
-                      <ChevronDown className={`${bookingsPageStyles.chevron} ${isOpen ? bookingsPageStyles.chevronOpen : bookingsPageStyles.chevronClosed}`} />
-                    </button>
-                  </div>
-                </article>
+                    }
+                  />
+                </div>
               );
             })
           )}
         </div>
       </div>
 
+      {/* ── QR scan modal (unchanged) ── */}
       {scannedDetails && (
         <div className={bookingsPageStyles.modalOverlay} aria-modal="true" role="dialog">
           <div className={bookingsPageStyles.modalBackdrop} onClick={closeModal} aria-hidden="true" />
@@ -409,11 +484,17 @@ export default function BookingsPage() {
                 <div className={bookingsPageStyles.modalDetails}>
                   <div><strong>Time:</strong> {scannedDetails.time}</div>
                   <div><strong>Auditorium:</strong> {scannedDetails.auditorium}</div>
-                  <div className="mt-2"><strong>Seats:</strong> {Array.isArray(scannedDetails.seats) ? scannedDetails.seats.join(", ") : scannedDetails.seats}</div>
+                  <div className="mt-2">
+                    <strong>Seats:</strong>{" "}
+                    {Array.isArray(scannedDetails.seats) ? scannedDetails.seats.join(", ") : scannedDetails.seats}
+                  </div>
                 </div>
               </div>
-
-              <button onClick={closeModal} className={bookingsPageStyles.modalCloseButton} aria-label="Close scanned details">
+              <button
+                onClick={closeModal}
+                className={bookingsPageStyles.modalCloseButton}
+                aria-label="Close scanned details"
+              >
                 <X className={bookingsPageStyles.modalCloseIcon} />
               </button>
             </div>
@@ -421,5 +502,6 @@ export default function BookingsPage() {
         </div>
       )}
     </div>
+    </BeamsBackground>
   );
 }
