@@ -16,18 +16,18 @@ export default function App() {
       localStorage.setItem("token", token);
       localStorage.setItem("authToken", token);
       localStorage.setItem("accessToken", token);
-      
+
       // Remove token from URL for security
       navigate("/", { replace: true });
     }
   }, [searchParams, navigate]);
 
   return (
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/listmovies" element={<ListMovies />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/bookings" element={<BookingsPage />} />
-      </Routes>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/listmovies" element={<ListMovies />} />
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/bookings" element={<BookingsPage />} />
+    </Routes>
   );
 }

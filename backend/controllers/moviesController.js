@@ -16,6 +16,13 @@ const getUploadUrl = (val) => {
   return `${API_BASE}/uploads/${cleaned}`;
 };
 
+const getUploadedFileUrl = (file) => {
+  if (!file) return null;
+  // CloudinaryStorage exposes the public asset URL on `path`; disk storage
+  // exposes `filename`, which still needs to be served from /uploads.
+  return file.path || (file.filename ? getUploadUrl(file.filename) : null);
+};
+
 const extractFilenameFromUrl = (u) => {
   if (!u || typeof u !== "string") return null;
   const parts = u.split("/uploads/");
@@ -167,9 +174,9 @@ export async function createMovie(req, res) {
     const body = req.body || {};
 
     // upload-aware fields (store urls for poster/trailer/video; for lt.thumbnail we keep filename/cleaned value)
-    const posterUrl = req.files?.poster?.[0]?.filename ? getUploadUrl(req.files.poster[0].filename) : (body.poster || null);
-    const trailerUrl = req.files?.trailerUrl?.[0]?.filename ? getUploadUrl(req.files.trailerUrl[0].filename) : (body.trailerUrl || null);
-    const videoUrl = req.files?.videoUrl?.[0]?.filename ? getUploadUrl(req.files.videoUrl[0].filename) : (body.videoUrl || null);
+    const posterUrl = req.files?.poster?.[0] ? getUploadedFileUrl(req.files.poster[0]) : (body.poster || null);
+    const trailerUrl = req.files?.trailerUrl?.[0] ? getUploadedFileUrl(req.files.trailerUrl[0]) : (body.trailerUrl || null);
+    const videoUrl = req.files?.videoUrl?.[0] ? getUploadedFileUrl(req.files.videoUrl[0]) : (body.videoUrl || null);
 
     const categories = safeParseJSON(body.categories) || (body.categories ? String(body.categories).split(",").map(s => s.trim()).filter(Boolean) : []);
     const slots = safeParseJSON(body.slots) || [];
@@ -180,11 +187,11 @@ export async function createMovie(req, res) {
     const producers = safeParseJSON(body.producers) || [];
 
     // generic attacher for arrays of uploaded files -> target array entries
-    const attachFiles = (filesArrName, targetArr, toFilename = (f) => getUploadUrl(f)) => {
+    const attachFiles = (filesArrName, targetArr, toUrl = getUploadedFileUrl) => {
       if (!req.files?.[filesArrName]) return;
       req.files[filesArrName].forEach((file, idx) => {
-        if (targetArr[idx]) targetArr[idx].file = toFilename(file.filename);
-        else targetArr[idx] = { name: "", file: toFilename(file.filename) };
+        if (targetArr[idx]) targetArr[idx].file = toUrl(file);
+        else targetArr[idx] = { name: "", file: toUrl(file) };
       });
     };
     attachFiles("castFiles", cast);
@@ -193,7 +200,7 @@ export async function createMovie(req, res) {
 
     // latest trailer
     const latestTrailerBody = safeParseJSON(body.latestTrailer) || {};
-    if (req.files?.ltThumbnail?.[0]?.filename) latestTrailerBody.thumbnail = req.files.ltThumbnail[0].filename;
+    if (req.files?.ltThumbnail?.[0]) latestTrailerBody.thumbnail = getUploadedFileUrl(req.files.ltThumbnail[0]);
     else if (body.ltThumbnail) {
       const fn = extractFilenameFromUrl(body.ltThumbnail);
       latestTrailerBody.thumbnail = fn ? fn : body.ltThumbnail;
@@ -210,9 +217,9 @@ export async function createMovie(req, res) {
     const attachLtFiles = (fieldName, arrName) => {
       if (!req.files?.[fieldName]) return;
       req.files[fieldName].forEach((file, idx) => {
-        const filename = file.filename;
-        if (latestTrailerBody[arrName][idx]) latestTrailerBody[arrName][idx].file = filename;
-        else latestTrailerBody[arrName][idx] = { name: "", file: filename };
+        const fileUrl = getUploadedFileUrl(file);
+        if (latestTrailerBody[arrName][idx]) latestTrailerBody[arrName][idx].file = fileUrl;
+        else latestTrailerBody[arrName][idx] = { name: "", file: fileUrl };
       });
     };
     attachLtFiles("ltDirectorFiles", "directors");
