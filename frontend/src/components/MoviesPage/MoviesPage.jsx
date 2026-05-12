@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { moviesPageStyles } from "../../assets/dummyStyles";
 import { BeamsBackground } from "../ui/beams-background";
@@ -7,6 +7,8 @@ import { HoverBorderGradient } from "../ui/hover-border-gradient";
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const COLLAPSE_COUNT = 12;
 const PLACEHOLDER = "https://placehold.co/400x600?text=No+Poster";
+const MOVIES_CACHE_KEY = "bookaro:movies:v1";
+const SKELETON_COUNT = 12;
 
 function getUploadUrl(maybe) {
   if (!maybe) return null;
@@ -65,67 +67,117 @@ const isBookableMovie = (movie) => {
   return type === "normal" || type === "featured";
 };
 
+const readCachedMovies = () => {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const cached = window.localStorage.getItem(MOVIES_CACHE_KEY);
+    if (!cached) return [];
+    const parsed = JSON.parse(cached);
+    return Array.isArray(parsed?.movies) ? parsed.movies : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeCachedMovies = (nextMovies) => {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(
+      MOVIES_CACHE_KEY,
+      JSON.stringify({ movies: nextMovies, cachedAt: Date.now() })
+    );
+  } catch {
+    // Cache failures should not block the movie page.
+  }
+};
+
+const preloadPosterImages = (nextMovies) => {
+  if (typeof window === "undefined") return;
+
+  nextMovies.slice(0, COLLAPSE_COUNT).forEach((movie) => {
+    if (!movie.image || movie.image === PLACEHOLDER) return;
+    const img = new Image();
+    img.src = movie.image;
+  });
+};
+
+const MovieSkeletonCard = () => (
+  <div className="animate-pulse" aria-hidden="true">
+    <div className="aspect-[2/3] rounded-lg bg-gradient-to-br from-gray-800 via-gray-700 to-gray-900" />
+    <div className="mx-auto mt-3 h-4 w-3/4 rounded-full bg-gray-800" />
+    <div className="mx-auto mt-2 h-3 w-1/2 rounded-full bg-gray-900" />
+  </div>
+);
+
+const LoadingScrollBar = ({ label = "Refreshing movies" }) => (
+  <div className="mb-5" role="status" aria-live="polite">
+    <div className="mb-2 text-center text-xs uppercase tracking-[0.2em] text-red-200/80">
+      {label}
+    </div>
+    <div className="mx-auto h-1.5 max-w-sm overflow-hidden rounded-full bg-white/10">
+      <div className="h-full w-1/3 animate-[movie-scroll_1.1s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-red-500 via-white to-red-600" />
+    </div>
+    <style>{`
+      @keyframes movie-scroll {
+        0% { transform: translateX(-120%); }
+        100% { transform: translateX(320%); }
+      }
+    `}</style>
+  </div>
+);
+
 export default function MoviesPage() {
+  const cachedMovies = useMemo(() => readCachedMovies(), []);
   const [activeCategory, setActiveCategory] = useState("all");
   const [showAll, setShowAll] = useState(false);
-  const [movies, setMovies] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [movies, setMovies] = useState(cachedMovies);
+  const [loading, setLoading] = useState(cachedMovies.length === 0);
+  const [refreshing, setRefreshing] = useState(cachedMovies.length > 0);
   const [error, setError] = useState(null);
 
-  // fetch normal movies on mount
+  const fetchMovies = useCallback(async (signal) => {
+    const res = await fetch(`${API_BASE}/api/movies?limit=200`, {
+      signal,
+      cache: "no-cache",
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const json = await res.json();
+    const items = Array.isArray(json.items) ? json.items : [];
+    return items.filter(isBookableMovie).map(mapBackendMovie);
+  }, []);
+
   useEffect(() => {
     const ac = new AbortController();
-    let mounted = true;
 
     async function load() {
-      setLoading(true);
+      const hasStaleMovies = cachedMovies.length > 0;
+      setLoading(!hasStaleMovies);
+      setRefreshing(hasStaleMovies);
       setError(null);
 
       try {
-        // ask backend for all movies
-        const url = `${API_BASE}/api/movies?limit=200`;
-        const res = await fetch(url, { signal: ac.signal });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const items = Array.isArray(json.items) ? json.items : [];
-
-        // map backend shape to frontend shape
-        const mapped = items.filter(isBookableMovie).map(mapBackendMovie);
-        if (mounted) {
-          setMovies(mapped);
-          setLoading(false);
-        }
+        const mapped = await fetchMovies(ac.signal);
+        setMovies(mapped);
+        writeCachedMovies(mapped);
+        preloadPosterImages(mapped);
       } catch (err) {
         if (err.name === "AbortError") return;
         console.error("Failed to load movies:", err);
-        // fallback: try a generic fetch for any movies
-        try {
-          const res2 = await fetch(`${API_BASE}/api/movies?limit=200`);
-          if (!res2.ok) throw new Error(`Fallback HTTP ${res2.status}`);
-          const json2 = await res2.json();
-          const items2 = Array.isArray(json2.items) ? json2.items : [];
-          const mapped2 = items2.filter(isBookableMovie).map(mapBackendMovie);
-          if (mounted) {
-            setMovies(mapped2);
-            setLoading(false);
-          }
-        } catch (err2) {
-          if (err2.name === "AbortError") return;
-          console.error("Movies fallback failed:", err2);
-          if (mounted) {
-            setError("Unable to load movies.");
-            setLoading(false);
-          }
+        setError(hasStaleMovies ? null : "Unable to load movies.");
+      } finally {
+        if (!ac.signal.aborted) {
+          setLoading(false);
+          setRefreshing(false);
         }
       }
     }
 
     load();
-    return () => {
-      mounted = false;
-      ac.abort();
-    };
-  }, []);
+    return () => ac.abort();
+  }, [cachedMovies.length, fetchMovies]);
 
   // hide expanded list when category changes
   useEffect(() => {
@@ -133,7 +185,7 @@ export default function MoviesPage() {
   }, [activeCategory]);
 
   // filter by category (case-insensitive)
-  const filteredMovies = React.useMemo(() => {
+  const filteredMovies = useMemo(() => {
     if (activeCategory === "all") return movies;
     return movies.filter(
       (m) =>
@@ -175,10 +227,19 @@ export default function MoviesPage() {
 
       <section className={moviesPageStyles.moviesSection}>
         <div className={moviesPageStyles.moviesContainer}>
+          {refreshing && movies.length > 0 && (
+            <LoadingScrollBar label="Updating movies" />
+          )}
+
           {loading ? (
-            <div className="py-12 text-center text-gray-300">
-              Loading movies…
-            </div>
+            <>
+              <LoadingScrollBar label="Loading movies" />
+              <div className={moviesPageStyles.moviesGrid}>
+                {Array.from({ length: SKELETON_COUNT }).map((_, index) => (
+                  <MovieSkeletonCard key={index} />
+                ))}
+              </div>
+            </>
           ) : error ? (
             <div className="py-12 text-center text-red-400">{error}</div>
           ) : (
