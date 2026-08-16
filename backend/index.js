@@ -68,7 +68,7 @@ const corsOptions = {
 
 // Middleware
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
+app.options(/(.*)/, cors(corsOptions));
 app.post("/api/bookings/stripe-webhook", express.raw({ type: "application/json" }), stripeWebhook);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
