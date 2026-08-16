@@ -44,15 +44,31 @@ const allowedOrigins = [
 
 const corsOptions = {
     origin(origin, callback) {
-        if (!isProduction || !origin) return callback(null, true);
+        // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+        if (!origin) return callback(null, true);
+        
         const normalizedOrigin = String(origin).replace(/\/+$/, "");
-        if (allowedOrigins.includes(normalizedOrigin)) return callback(null, true);
-        return callback(new Error("Not allowed by CORS"));
+        
+        // If allowedOrigins includes '*' or the origin directly, allow
+        if (
+            allowedOrigins.includes("*") ||
+            allowedOrigins.includes(normalizedOrigin) ||
+            (!isProduction && (origin.includes("localhost") || origin.includes("127.0.0.1")))
+        ) {
+            return callback(null, true);
+        }
+
+        console.warn(`[CORS Blocked] Origin: ${origin} not in allowedOrigins:`, allowedOrigins);
+        return callback(null, false);
     },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "token", "X-Requested-With", "Accept"],
 };
 
 // Middleware
-app.use(cors(corsOptions))
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.post("/api/bookings/stripe-webhook", express.raw({ type: "application/json" }), stripeWebhook);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
