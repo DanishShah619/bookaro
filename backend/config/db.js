@@ -1,9 +1,13 @@
 import mongoose from "mongoose";
 
-export const connectDB = async ()=> {
+export const connectDB = async () => {
   const databaseUrl = process.env.DATABASE_URL || "mongodb://mongo:27017/moviebooking";
-  await mongoose.connect(databaseUrl)
-  .then(() => {console.log("DB connected")})
+  await mongoose.connect(databaseUrl, {
+    tls: true,
+    tlsAllowInvalidCertificates: false,
+  })
+  .then(() => { console.log("DB connected") })
+  .catch((err) => { console.error("DB connection error:", err.message); process.exit(1); });
 }
 
 // ✨ Step-by-step Instructions (Follow Step 1, then Step 2, then Step 3, …)
