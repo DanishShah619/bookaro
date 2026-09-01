@@ -9,8 +9,7 @@ import { FlippingCard } from "../ui/flipping-card";
 import { BeamsBackground } from "../ui/beams-background";
 import { StaggerText } from "../ui/stagger-text";
 
-// API base
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000").replace(/\/+$/, "");
 
 /* ---------- small data-URI placeholder (offline-safe) ---------- */
 function makePlaceholderDataUri(width = 320, height = 480, text = "No Image") {

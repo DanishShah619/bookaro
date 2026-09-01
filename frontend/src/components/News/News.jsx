@@ -9,7 +9,7 @@ import {
 import { sampleNews as fallbackNews } from "./newdummydata";
 import { newsStyles, newsCSS } from "../../assets/dummyStyles";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000").replace(/\/+$/, "");
 
 const News = () => {
   const [newsItems, setNewsItems] = useState(fallbackNews);

@@ -69,6 +69,15 @@ const corsOptions = {
 // Middleware
 app.use(cors(corsOptions));
 app.options(/(.*)/, cors(corsOptions));
+
+// Normalize leading multiple slashes (e.g. //api/movies -> /api/movies)
+app.use((req, res, next) => {
+    if (req.url && req.url.startsWith("//")) {
+        req.url = req.url.replace(/^\/+/, "/");
+    }
+    next();
+});
+
 app.post("/api/bookings/stripe-webhook", express.raw({ type: "application/json" }), stripeWebhook);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

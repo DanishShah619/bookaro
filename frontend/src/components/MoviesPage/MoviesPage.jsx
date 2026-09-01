@@ -4,7 +4,7 @@ import { moviesPageStyles } from "../../assets/dummyStyles";
 import { BeamsBackground } from "../ui/beams-background";
 import { HoverBorderGradient } from "../ui/hover-border-gradient";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000").replace(/\/+$/, "");
 const COLLAPSE_COUNT = 12;
 const PLACEHOLDER = "https://placehold.co/400x600?text=No+Poster";
 const MOVIES_CACHE_KEY = "bookaro:movies:v1";

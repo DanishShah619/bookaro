@@ -12,7 +12,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { BeamsBackground } from "../ui/beams-background";
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000") + "/api/auth";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000").replace(/\/+$/, "") + "/api/auth";
 const ADMIN_URL = (import.meta.env.VITE_ADMIN_URL || "http://localhost:5174").replace(/\/+$/, "");
 
 const inputCls =
